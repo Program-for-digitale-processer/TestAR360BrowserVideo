@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <title>KuumAR Test</title>
+  <title>KuumAR testing</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
   <style>
@@ -35,6 +35,7 @@
     #unity-loading-bar {
       display: none; position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%); text-align: center;
+      z-index: 1001; /* Layered explicitly above the start overlay */
     }
     #unity-progress-bar-empty { width: 200px; height: 10px; background: #333; margin-top: 10px; border-radius: 5px; }
     #unity-progress-bar-full { width: 0%; height: 100%; background: white; border-radius: 5px; transition: width 0.2s; }
@@ -62,18 +63,6 @@
       50% { transform: rotate(-90deg); }
       100% { transform: rotate(0deg); }
     }
-
-    /* 5. RESTORE FULLSCREEN OVERLAY */
-    #restore-fullscreen-overlay {
-      display: none; /* Hidden by default */
-      position: absolute; inset: 0; background: rgba(0,0,0,0.85);
-      flex-direction: column; justify-content: center; align-items: center; z-index: 2000;
-    }
-    #btn-restore {
-      padding: 15px 30px; font-size: 20px; color: white;
-      background: #4CAF50; border: none; border-radius: 12px; cursor: pointer;
-      font-family: sans-serif; font-weight: bold;
-    }
   </style>
 </head>
 
@@ -87,17 +76,18 @@
   <div id="unity-container">
     <canvas id="unity-canvas" tabindex="-1"></canvas>
     
+    <div id="fullscreen-shield" style="
+      display: none; 
+      position: absolute; 
+      inset: 0; 
+      z-index: 999; 
+      background: transparent;
+    "></div>
+
     <div id="custom-start-overlay">
       <button id="btn-play">START EXPERIENCE</button>
       <p style="color:white; margin-top:15px; font-family: sans-serif; opacity: 0.7; text-align:center; padding: 0 20px;">
         Tap to begin. Make sure the device is in Landscape position.
-      </p>
-    </div>
-
-    <div id="restore-fullscreen-overlay">
-      <button id="btn-restore">RESTORE FULLSCREEN</button>
-      <p style="color:white; margin-top:15px; font-family: sans-serif; opacity: 0.7; text-align:center; padding: 0 20px;">
-        Fullscreen was interrupted. Tap to resume.
       </p>
     </div>
 
@@ -113,10 +103,9 @@
     const progressBarFull = document.querySelector("#unity-progress-bar-full");
     const startOverlay = document.querySelector("#custom-start-overlay");
     const playButton = document.querySelector("#btn-play");
-    
-    // Grab the new restore UI elements
-    const restoreOverlay = document.querySelector("#restore-fullscreen-overlay");
-    const restoreButton = document.querySelector("#btn-restore");
+    const shield = document.querySelector("#fullscreen-shield");
+
+    let isVirtuallyFullscreen = false;
 
     function unityShowBanner(msg, type) {
       if (type !== 'error') return;
@@ -137,35 +126,57 @@
 
     function fillScreen() {
       const vv = window.visualViewport;
-      container.style.height = (vv ? vv.height : window.innerHeight) + "px";
-      container.style.width = (vv ? vv.width : window.innerWidth) + "px";
+      const targetHeight = (vv ? vv.height : window.innerHeight) + "px";
+      const targetWidth = (vv ? vv.width : window.innerWidth) + "px";
+      
+      container.style.height = targetHeight;
+      container.style.width = targetWidth;
+      canvas.style.height = targetHeight;
+      canvas.style.width = targetWidth;
+      
       window.scrollTo(0, 0);
     }
 
-    let started = false;
-
-    // --- NEW: FULLSCREEN DETECTION LOGIC ---
-    document.addEventListener("fullscreenchange", () => {
-      // If the app has started, but the browser says we are no longer in fullscreen...
-      if (started && !document.fullscreenElement) {
-        restoreOverlay.style.display = "flex"; // Show the restore button
-      } else {
-        restoreOverlay.style.display = "none"; // Hide it if we are in fullscreen
+    // Forces Chrome's rendering thread to process layout updates and clear the black screen context
+    function triggerWebGLResize() {
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(() => {
+          window.dispatchEvent(new Event('resize'));
+          setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 50);
+        });
       }
+    }
+
+    // Global bridge execution function triggered by your Unity C# Button via JSLIB
+    window.activateFullscreenShield = function() {
+      if (shield) {
+        shield.style.display = "block";
+      }
+    };
+
+    // Native handler that takes care of the second recovery tap
+    shield.addEventListener("click", async () => {
+      fillScreen();
+      isVirtuallyFullscreen = true;
+      shield.style.display = "none";
+
+      try {
+        if (container.requestFullscreen) {
+          await container.requestFullscreen();
+        } else if (container.webkitRequestFullscreen) {
+          await container.webkitRequestFullscreen();
+        }
+      } catch (e) {
+        console.log("Chrome gesture expired. Retaining robust virtual layout bounds.");
+      }
+
+      triggerWebGLResize();
     });
 
-    restoreButton.onclick = async () => {
-      // Request Fullscreen & Orientation Lock again
-      if (container.requestFullscreen) { try { await container.requestFullscreen(); } catch (e) {} }
-      try { if (screen.orientation?.lock) { await screen.orientation.lock("landscape"); } } catch (e) {}
-      fillScreen();
-    };
-    // ---------------------------------------
-
+    let started = false;
     playButton.onclick = async () => {
       if (started) return;
 
-      // Anti-jump: check orientation before starting
       if (window.innerHeight > window.innerWidth && window.innerWidth < 1024) {
           alert("Please rotate to Landscape first!");
           return;
@@ -182,11 +193,11 @@
       fillScreen();
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/Parnumaa_FullscreenTesting.loader.js";
+      var loaderUrl = buildUrl + "/Parnuma_FullscreenTest.loader.js";
       var config = {
-        dataUrl: buildUrl + "/Parnumaa_FullscreenTesting.data.unityweb",
-        frameworkUrl: buildUrl + "/Parnumaa_FullscreenTesting.framework.js.unityweb",
-        codeUrl: buildUrl + "/Parnumaa_FullscreenTesting.wasm.unityweb",
+        dataUrl: buildUrl + "/Parnuma_FullscreenTest.data.unityweb",
+        frameworkUrl: buildUrl + "/Parnuma_FullscreenTest.framework.js.unityweb",
+        codeUrl: buildUrl + "/Parnuma_FullscreenTest.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "via",
         productName: "KuumAR",
@@ -198,8 +209,11 @@
       const script = document.createElement("script");
       script.src = loaderUrl;
       script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = (progress * 100) + "%";
+        // Targeted DOM query string directly to keep loader context clean
+        createUnityInstance(document.querySelector("#unity-canvas"), config, (progress) => {
+          if (progressBarFull) {
+            progressBarFull.style.width = (progress * 100) + "%";
+          }
         }).then(() => {
           loadingBar.style.display = "none";
           setTimeout(fillScreen, 500);
@@ -210,7 +224,23 @@
       document.body.appendChild(script);
     };
 
-    window.addEventListener("resize", fillScreen);
+    // Modified resize listener to check for layout drops
+    window.addEventListener("resize", () => {
+      const isNativeFs = document.fullscreenElement || document.webkitFullscreenElement;
+      
+      if (!isNativeFs && started) {
+        if (isVirtuallyFullscreen) {
+          fillScreen(); // Retain layout sizing visually
+        } else {
+          shield.style.display = "block"; // Surface recovery net for the next tap
+        }
+      } else {
+        fillScreen();
+      }
+      
+      triggerWebGLResize();
+    });
+
     fillScreen();
   </script>
 </body>
