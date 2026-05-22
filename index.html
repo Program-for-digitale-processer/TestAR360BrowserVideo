@@ -43,12 +43,16 @@
       height: 100%;
     }
 
-    #unity-container:fullscreen {
+    #unity-container:fullscreen,
+    html:fullscreen,
+    body:fullscreen {
       width: 100vw;
       height: 100vh;
     }
 
-    #unity-container:-webkit-full-screen {
+    #unity-container:-webkit-full-screen,
+    html:-webkit-full-screen,
+    body:-webkit-full-screen {
       width: 100vw;
       height: 100vh;
     }
@@ -74,7 +78,7 @@
     #restore-fullscreen-overlay {
       display: none;
       background: rgba(0, 0, 0, 0.85);
-      z-index: 30000;
+      z-index: 50000;
     }
 
     #btn-play,
@@ -172,7 +176,8 @@
     }
 
     @keyframes rotate-phone {
-      0%, 100% {
+      0%,
+      100% {
         transform: rotate(0deg);
       }
 
@@ -260,7 +265,7 @@
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        zIndex: "50000",
+        zIndex: "60000",
         color: "white",
         fontFamily: "sans-serif",
         textAlign: "center",
@@ -363,15 +368,14 @@
     }
 
     function setRestoreOverlayVisible(visible, reason) {
-      restoreOverlay.style.display = visible ? "flex" : "none";
+      restoreOverlay.style.setProperty("display", visible ? "flex" : "none", "important");
+      restoreOverlay.style.zIndex = "50000";
 
       if (visible && loadingDebug) {
         loadingDebug.textContent = "Fullscreen interrupted: " + reason;
       }
-    }
 
-    function shouldShowRestoreOverlay() {
-      return fullscreenWanted && !isNativeFullscreen();
+      console.log("[FullscreenRecovery] Overlay visible:", visible, "Reason:", reason);
     }
 
     function forceShowRestoreOverlay(reason) {
@@ -379,18 +383,20 @@
 
       scheduleFillScreen();
 
-      if (isNativeFullscreen()) {
-        setRestoreOverlayVisible(false, reason + " / already fullscreen");
-        return;
-      }
-
-      restoreOverlay.style.display = "flex";
+      // Force showing for permission-popup recovery.
+      // We do not trust fullscreenElement immediately after the Chrome permission UI.
+      restoreOverlay.style.setProperty("display", "flex", "important");
+      restoreOverlay.style.zIndex = "50000";
 
       if (loadingDebug) {
         loadingDebug.textContent = "Restore overlay shown: " + reason;
       }
 
-      console.log("[FullscreenRecovery] Restore overlay shown:", reason);
+      console.log("[FullscreenRecovery] Restore overlay forced:", reason);
+    }
+
+    function shouldShowRestoreOverlay() {
+      return fullscreenWanted && !isNativeFullscreen();
     }
 
     function checkFullscreenAndMaybeShowRestore(reason) {
@@ -424,7 +430,11 @@
     function requestAppFullscreen(reason) {
       fullscreenWanted = true;
 
-      const target = container || document.documentElement;
+      /*
+        document.documentElement is used instead of #unity-container.
+        On some Android Chrome states after permission UI, fullscreening the root can be more reliable.
+      */
+      const target = document.documentElement;
 
       try {
         let request = null;
@@ -626,10 +636,24 @@
       fullscreenWanted = true;
 
       if (loadingDebug) {
-        loadingDebug.textContent = "Location permission finished. Checking fullscreen...";
+        loadingDebug.textContent =
+          "Location permission finished. Waiting before showing restore button...";
       }
 
-      startFullscreenRecoveryWatch("location permission finished");
+      clearFullscreenCheckTimers();
+
+      /*
+        Important:
+        Do not check immediately. Chrome may still be closing the permission UI
+        or fading out the black fullscreen-exit transition.
+      */
+      setTimeout(function () {
+        forceShowRestoreOverlay("location permission finished / forced 1000ms");
+      }, 1000);
+
+      setTimeout(function () {
+        forceShowRestoreOverlay("location permission finished / forced 2000ms");
+      }, 2000);
     };
 
     window.ForceFullscreenRecoveryCheck = function () {
@@ -692,7 +716,7 @@
 
       /*
         IMPORTANT:
-        This must match your Unity WebGL build files.
+        This must match your Unity WebGL build files exactly.
 
         Example:
         Build/Parnuma_FullscreenTest.loader.js
