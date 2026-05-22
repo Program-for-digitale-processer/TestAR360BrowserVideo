@@ -176,8 +176,7 @@
     }
 
     @keyframes rotate-phone {
-      0%,
-      100% {
+      0%, 100% {
         transform: rotate(0deg);
       }
 
@@ -247,6 +246,16 @@
     let lastWidth = 0;
     let lastHeight = 0;
     let lastProgressPercent = -1;
+
+    function getUserActivationDebug() {
+      const ua = navigator.userActivation;
+
+      if (!ua) {
+        return "navigator.userActivation not supported";
+      }
+
+      return "isActive=" + ua.isActive + ", hasBeenActive=" + ua.hasBeenActive;
+    }
 
     function unityShowBanner(msg, type) {
       if (type !== "error") return;
@@ -383,8 +392,6 @@
 
       scheduleFillScreen();
 
-      // Force showing for permission-popup recovery.
-      // We do not trust fullscreenElement immediately after the Chrome permission UI.
       restoreOverlay.style.setProperty("display", "flex", "important");
       restoreOverlay.style.zIndex = "50000";
 
@@ -430,11 +437,13 @@
     function requestAppFullscreen(reason) {
       fullscreenWanted = true;
 
-      /*
-        document.documentElement is used instead of #unity-container.
-        On some Android Chrome states after permission UI, fullscreening the root can be more reliable.
-      */
       const target = document.documentElement;
+
+      console.log("[Fullscreen] request reason:", reason);
+      console.log("[Fullscreen] userActivation before request:", getUserActivationDebug());
+      console.log("[Fullscreen] event target:", target);
+      console.log("[Fullscreen] fullscreenEnabled:", document.fullscreenEnabled);
+      console.log("[Fullscreen] webkitFullscreenEnabled:", document.webkitFullscreenEnabled);
 
       try {
         let request = null;
@@ -445,6 +454,7 @@
           request = target.webkitRequestFullscreen();
         } else {
           const msg = "Fullscreen API is not available on this browser.";
+
           console.warn(msg);
 
           if (loadingDebug) {
@@ -486,7 +496,8 @@
 
                     if (loadingDebug) {
                       loadingDebug.textContent =
-                        "Fullscreen request completed, but Chrome stayed windowed.";
+                        "Fullscreen request completed, but Chrome stayed windowed. " +
+                        getUserActivationDebug();
                     }
                   }
 
@@ -499,10 +510,16 @@
             })
             .catch(function (e) {
               console.warn("[Fullscreen] Request rejected:", e);
+              console.warn("[Fullscreen] name:", e && e.name);
+              console.warn("[Fullscreen] message:", e && e.message);
 
               if (loadingDebug) {
                 loadingDebug.textContent =
-                  "Fullscreen rejected: " + (e && e.message ? e.message : e);
+                  "Fullscreen rejected: " +
+                  (e && e.name ? e.name + ": " : "") +
+                  (e && e.message ? e.message : e) +
+                  ". " +
+                  getUserActivationDebug();
               }
 
               fillScreen();
@@ -527,7 +544,8 @@
 
               if (loadingDebug) {
                 loadingDebug.textContent =
-                  "Fullscreen request sent, but browser stayed windowed.";
+                  "Fullscreen request sent, but browser stayed windowed. " +
+                  getUserActivationDebug();
               }
             }
 
@@ -542,7 +560,10 @@
 
         if (loadingDebug) {
           loadingDebug.textContent =
-            "Fullscreen exception: " + (e && e.message ? e.message : e);
+            "Fullscreen exception: " +
+            (e && e.message ? e.message : e) +
+            ". " +
+            getUserActivationDebug();
         }
 
         fillScreen();
@@ -572,6 +593,24 @@
 
     document.addEventListener("webkitfullscreenchange", function () {
       handleFullscreenChange("webkitfullscreenchange");
+    });
+
+    document.addEventListener("fullscreenerror", function (e) {
+      console.warn("[FullscreenError] fullscreenerror event:", e);
+
+      if (loadingDebug) {
+        loadingDebug.textContent =
+          "fullscreenerror event fired. " + getUserActivationDebug();
+      }
+    });
+
+    document.addEventListener("webkitfullscreenerror", function (e) {
+      console.warn("[FullscreenError] webkitfullscreenerror event:", e);
+
+      if (loadingDebug) {
+        loadingDebug.textContent =
+          "webkitfullscreenerror event fired. " + getUserActivationDebug();
+      }
     });
 
     document.addEventListener("visibilitychange", function () {
@@ -614,9 +653,6 @@
       });
     }
 
-    /*
-      Called from Unity through ActivateFullscreenInIndex.jslib
-    */
     window.LocationPermissionAboutToShow = function () {
       console.log("[FullscreenRecovery] LocationPermissionAboutToShow called");
 
@@ -642,11 +678,6 @@
 
       clearFullscreenCheckTimers();
 
-      /*
-        Important:
-        Do not check immediately. Chrome may still be closing the permission UI
-        or fading out the black fullscreen-exit transition.
-      */
       setTimeout(function () {
         forceShowRestoreOverlay("location permission finished / forced 1000ms");
       }, 1000);
@@ -676,11 +707,22 @@
 
       fullscreenWanted = true;
 
+      const activationDebug = getUserActivationDebug();
+
+      console.log("[Restore Button] clicked");
+      console.log("[Restore Button] event.isTrusted:", event.isTrusted);
+      console.log("[Restore Button] userActivation:", activationDebug);
+
       if (loadingDebug) {
-        loadingDebug.textContent = "Restore button tapped. Requesting fullscreen...";
+        loadingDebug.textContent =
+          "Restore tapped. " + activationDebug + ". Requesting fullscreen...";
       }
 
       requestAppFullscreen("restore button click").then(function (success) {
+        console.log("[Restore Button] fullscreen success:", success);
+        console.log("[Restore Button] fullscreenElement:", document.fullscreenElement);
+        console.log("[Restore Button] webkitFullscreenElement:", document.webkitFullscreenElement);
+
         if (success) {
           clearFullscreenCheckTimers();
           setRestoreOverlayVisible(false, "fullscreen restored");
@@ -717,12 +759,6 @@
       /*
         IMPORTANT:
         This must match your Unity WebGL build files exactly.
-
-        Example:
-        Build/Parnuma_FullscreenTest.loader.js
-        Build/Parnuma_FullscreenTest.data.unityweb
-        Build/Parnuma_FullscreenTest.framework.js.unityweb
-        Build/Parnuma_FullscreenTest.wasm.unityweb
       */
       const buildName = "ParnumaFullscreentest";
 
