@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <title>KuumAR 3 test fullscreen</title>
+  <title>KuumAR fullscreen</title>
 
   <meta
     name="viewport"
@@ -19,7 +19,7 @@
       height: 100%;
       height: 100dvh;
       overflow: hidden;
-      background: black;
+      background: #000;
       position: fixed;
       inset: 0;
       touch-action: none;
@@ -37,7 +37,7 @@
     }
 
     #unity-canvas {
-      background: black;
+      background: #000;
       display: block;
       width: 100%;
       height: 100%;
@@ -53,27 +53,47 @@
       height: 100vh;
     }
 
-    #custom-start-overlay {
-      position: absolute;
+    #custom-start-overlay,
+    #restore-fullscreen-overlay {
+      position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.9);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
+      text-align: center;
+      box-sizing: border-box;
+      padding: 20px;
+    }
+
+    #custom-start-overlay {
       z-index: 1000;
     }
 
-    #btn-play {
+    #restore-fullscreen-overlay {
+      display: none;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 30000;
+    }
+
+    #btn-play,
+    #btn-restore {
       padding: 20px 40px;
       font-size: 24px;
-      color: white;
+      color: #fff;
       background: #2196f3;
       border: none;
       border-radius: 12px;
       cursor: pointer;
       font-family: sans-serif;
       font-weight: bold;
+    }
+
+    #btn-restore {
+      background: #4caf50;
+      padding: 15px 30px;
+      font-size: 20px;
     }
 
     #unity-loading-bar {
@@ -96,19 +116,30 @@
     }
 
     #unity-progress-bar-full {
-      width: 0%;
+      width: 100%;
       height: 100%;
-      background: white;
+      background: #fff;
       border-radius: 5px;
-      transition: width 0.2s;
+      transform: scaleX(0);
+      transform-origin: left center;
+      transition: transform 0.2s linear;
     }
 
-    #loading-debug {
-      color: white;
+    #loading-debug,
+    .overlay-text {
+      color: #fff;
       font-family: sans-serif;
       margin-top: 10px;
       font-size: 12px;
       opacity: 0.75;
+      text-align: center;
+    }
+
+    .overlay-text {
+      font-size: 14px;
+      padding: 0 20px;
+      max-width: 520px;
+      line-height: 1.4;
     }
 
     #orientation-warning {
@@ -116,7 +147,7 @@
       position: fixed;
       inset: 0;
       background: #000;
-      color: white;
+      color: #fff;
       z-index: 40000;
       flex-direction: column;
       justify-content: center;
@@ -141,54 +172,14 @@
     }
 
     @keyframes rotate-phone {
-      0% {
+      0%,
+      100% {
         transform: rotate(0deg);
       }
 
       50% {
         transform: rotate(-90deg);
       }
-
-      100% {
-        transform: rotate(0deg);
-      }
-    }
-
-    #restore-fullscreen-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.85);
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 30000;
-      text-align: center;
-      box-sizing: border-box;
-      padding: 20px;
-    }
-
-    #btn-restore {
-      padding: 15px 30px;
-      font-size: 20px;
-      color: white;
-      background: #4caf50;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      font-family: sans-serif;
-      font-weight: bold;
-    }
-
-    .overlay-text {
-      color: white;
-      margin-top: 15px;
-      font-family: sans-serif;
-      opacity: 0.75;
-      text-align: center;
-      padding: 0 20px;
-      max-width: 520px;
-      line-height: 1.4;
     }
   </style>
 </head>
@@ -215,7 +206,8 @@
     <div id="restore-fullscreen-overlay">
       <button id="btn-restore">RESTORE FULLSCREEN</button>
       <p class="overlay-text">
-        Fullscreen was interrupted by the browser. Tap to resume fullscreen.
+        The browser exited fullscreen during the location permission step.
+        Tap to resume fullscreen.
       </p>
     </div>
 
@@ -240,13 +232,17 @@
 
     let started = false;
     let isUnityLoaded = false;
+    let fullscreenWanted = false;
 
     let fillScreenScheduled = false;
     let syntheticResizeInProgress = false;
 
     let fullscreenCheckTimer1 = null;
     let fullscreenCheckTimer2 = null;
+    let fullscreenCheckTimer3 = null;
 
+    let lastWidth = 0;
+    let lastHeight = 0;
     let lastProgressPercent = -1;
 
     function unityShowBanner(msg, type) {
@@ -258,8 +254,7 @@
 
       Object.assign(overlay.style, {
         position: "fixed",
-        top: "0",
-        left: "0",
+        inset: "0",
         width: "100%",
         height: "100%",
         backgroundColor: "rgba(0,0,0,0.95)",
@@ -319,16 +314,16 @@
       const width = vv ? vv.width : window.innerWidth;
       const height = vv ? vv.height : window.innerHeight;
 
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-      document.body.style.margin = "0";
-      document.body.style.padding = "0";
+      if (width !== lastWidth || height !== lastHeight) {
+        lastWidth = width;
+        lastHeight = height;
 
-      container.style.width = width + "px";
-      container.style.height = height + "px";
+        container.style.width = width + "px";
+        container.style.height = height + "px";
 
-      canvas.style.width = "100%";
-      canvas.style.height = "100%";
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+      }
 
       window.scrollTo(0, 0);
     }
@@ -344,11 +339,6 @@
       });
     }
 
-    /*
-      Optimized:
-      - Still sends several resize events for Unity.
-      - But marks them as synthetic so our own resize handler does not trigger more fullscreen checks.
-    */
     function triggerUnityResize() {
       syntheticResizeInProgress = true;
 
@@ -356,19 +346,16 @@
 
       setTimeout(function () {
         window.dispatchEvent(new Event("resize"));
-      }, 50);
-
-      setTimeout(function () {
-        window.dispatchEvent(new Event("resize"));
-      }, 250);
+      }, 100);
 
       setTimeout(function () {
         window.dispatchEvent(new Event("resize"));
         syntheticResizeInProgress = false;
-      }, 500);
+      }, 400);
     }
 
     function requestAppFullscreen() {
+      fullscreenWanted = true;
       fillScreen();
 
       try {
@@ -412,89 +399,100 @@
     }
 
     function shouldShowRestoreOverlay() {
-      return started && isUnityLoaded && !isNativeFullscreen();
+      return started && fullscreenWanted && !isNativeFullscreen();
     }
 
-    /*
-      Optimized:
-      - Does NOT trigger Unity resize here.
-      - Only updates layout and overlay visibility.
-      - This avoids resize/check/resize feedback loops.
-    */
-    function showRestoreOverlayIfNeeded(reason) {
-      scheduleFillScreen();
+    function setRestoreOverlayVisible(visible, reason) {
+      restoreOverlay.style.display = visible ? "flex" : "none";
 
-      if (shouldShowRestoreOverlay()) {
-        restoreOverlay.style.display = "flex";
-
-        if (loadingDebug) {
-          loadingDebug.textContent = "Fullscreen interrupted: " + reason;
-        }
-      } else {
-        restoreOverlay.style.display = "none";
+      if (visible && loadingDebug) {
+        loadingDebug.textContent = "Fullscreen interrupted: " + reason;
       }
     }
 
-    /*
-      Optimized:
-      - Cancels old timers before creating new ones.
-      - Prevents many stacked delayed checks during viewport changes.
-    */
-    function delayedFullscreenCheck(reason) {
-      showRestoreOverlayIfNeeded(reason);
+    function checkFullscreenAndMaybeShowRestore(reason) {
+      scheduleFillScreen();
 
-      clearTimeout(fullscreenCheckTimer1);
-      clearTimeout(fullscreenCheckTimer2);
-
-      fullscreenCheckTimer1 = setTimeout(function () {
-        showRestoreOverlayIfNeeded(reason + " / 500ms");
-      }, 500);
-
-      fullscreenCheckTimer2 = setTimeout(function () {
-        showRestoreOverlayIfNeeded(reason + " / 1500ms");
-      }, 1500);
+      if (shouldShowRestoreOverlay()) {
+        setRestoreOverlayVisible(true, reason);
+      } else {
+        setRestoreOverlayVisible(false, reason);
+      }
     }
 
-    function handleFullscreenChange() {
+    function clearFullscreenCheckTimers() {
+      clearTimeout(fullscreenCheckTimer1);
+      clearTimeout(fullscreenCheckTimer2);
+      clearTimeout(fullscreenCheckTimer3);
+
+      fullscreenCheckTimer1 = null;
+      fullscreenCheckTimer2 = null;
+      fullscreenCheckTimer3 = null;
+    }
+
+    function startFullscreenRecoveryWatch(reason) {
+      if (!started || !fullscreenWanted) return;
+
+      clearFullscreenCheckTimers();
+
+      /*
+        These delays are intentional.
+        Android Chrome may still be closing the permission UI / black transition.
+      */
+      fullscreenCheckTimer1 = setTimeout(function () {
+        checkFullscreenAndMaybeShowRestore(reason + " / 800ms");
+      }, 800);
+
+      fullscreenCheckTimer2 = setTimeout(function () {
+        checkFullscreenAndMaybeShowRestore(reason + " / 1500ms");
+      }, 1500);
+
+      fullscreenCheckTimer3 = setTimeout(function () {
+        checkFullscreenAndMaybeShowRestore(reason + " / 2500ms");
+      }, 2500);
+    }
+
+    function handleFullscreenChange(reason) {
       if (!started) return;
 
       if (isNativeFullscreen()) {
-        restoreOverlay.style.display = "none";
+        clearFullscreenCheckTimers();
+        setRestoreOverlayVisible(false, reason);
       } else {
-        delayedFullscreenCheck("fullscreenchange");
+        startFullscreenRecoveryWatch(reason);
       }
 
       scheduleFillScreen();
       triggerUnityResize();
     }
 
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("fullscreenchange", function () {
+      handleFullscreenChange("fullscreenchange");
+    });
+
+    document.addEventListener("webkitfullscreenchange", function () {
+      handleFullscreenChange("webkitfullscreenchange");
+    });
 
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState === "visible") {
-        delayedFullscreenCheck("visibilitychange visible");
+        startFullscreenRecoveryWatch("visibilitychange visible");
       }
     });
 
     window.addEventListener("focus", function () {
-      delayedFullscreenCheck("window focus");
+      startFullscreenRecoveryWatch("window focus");
     });
 
     window.addEventListener("pageshow", function () {
-      delayedFullscreenCheck("pageshow");
+      startFullscreenRecoveryWatch("pageshow");
     });
 
-    /*
-      Optimized:
-      - If the resize event was fired by triggerUnityResize(), do not run fullscreen checks again.
-      - This prevents the main performance problem.
-    */
     window.addEventListener("resize", function () {
       scheduleFillScreen();
 
       if (!syntheticResizeInProgress) {
-        delayedFullscreenCheck("window resize");
+        startFullscreenRecoveryWatch("window resize");
       }
     });
 
@@ -503,7 +501,7 @@
         scheduleFillScreen();
 
         if (!syntheticResizeInProgress) {
-          delayedFullscreenCheck("visualViewport resize");
+          startFullscreenRecoveryWatch("visualViewport resize");
         }
       });
 
@@ -511,25 +509,50 @@
         scheduleFillScreen();
 
         if (!syntheticResizeInProgress) {
-          delayedFullscreenCheck("visualViewport scroll");
+          startFullscreenRecoveryWatch("visualViewport scroll");
         }
       });
     }
 
+    /*
+      Called from Unity through ActivateFullscreenInIndex.jslib
+    */
+    window.LocationPermissionAboutToShow = function () {
+      fullscreenWanted = true;
+
+      clearFullscreenCheckTimers();
+      setRestoreOverlayVisible(false, "location permission starting");
+
+      if (loadingDebug) {
+        loadingDebug.textContent = "Location permission is opening...";
+      }
+    };
+
+    window.LocationPermissionFinished = function () {
+      if (loadingDebug) {
+        loadingDebug.textContent = "Location permission finished. Checking fullscreen...";
+      }
+
+      startFullscreenRecoveryWatch("location permission finished");
+    };
+
+    window.ForceFullscreenRecoveryCheck = function () {
+      startFullscreenRecoveryWatch("Unity forced recovery check");
+    };
+
     restoreButton.onclick = function () {
-      restoreOverlay.style.display = "none";
+      setRestoreOverlayVisible(false, "restore clicked");
 
       requestAppFullscreen();
 
       setTimeout(function () {
-        if (!isNativeFullscreen() && isUnityLoaded) {
-          restoreOverlay.style.display = "flex";
+        fillScreen();
+        triggerUnityResize();
 
-          if (loadingDebug) {
-            loadingDebug.textContent = "Restore attempted, but browser stayed windowed.";
-          }
+        if (!isNativeFullscreen() && fullscreenWanted) {
+          setRestoreOverlayVisible(true, "restore attempted but browser stayed windowed");
         }
-      }, 800);
+      }, 1000);
     };
 
     playButton.onclick = function () {
@@ -545,9 +568,11 @@
       }
 
       started = true;
+      fullscreenWanted = true;
+
       startOverlay.style.display = "none";
       loadingBar.style.display = "block";
-      progressBarFull.style.width = "0%";
+      progressBarFull.style.transform = "scaleX(0)";
       loadingDebug.textContent = "Starting Unity loader...";
 
       requestAppFullscreen();
@@ -556,25 +581,13 @@
 
       /*
         IMPORTANT:
-        This must match your actual files in the Build folder.
+        This must match your files in the Build folder.
 
-        If your files are:
-          Build/Parnuma_FullscreenTest.loader.js
-          Build/Parnuma_FullscreenTest.data.unityweb
-          Build/Parnuma_FullscreenTest.framework.js.unityweb
-          Build/Parnuma_FullscreenTest.wasm.unityweb
-
-        use:
-          const buildName = "Parnuma_FullscreenTest";
-
-        If your files are:
-          Build/Parnumaa_FullscreenTesting.loader.js
-          Build/Parnumaa_FullscreenTesting.data.unityweb
-          Build/Parnumaa_FullscreenTesting.framework.js.unityweb
-          Build/Parnumaa_FullscreenTesting.wasm.unityweb
-
-        use:
-          const buildName = "Parnumaa_FullscreenTesting";
+        Example:
+        Build/Parnuma_FullscreenTest.loader.js
+        Build/Parnuma_FullscreenTest.data.unityweb
+        Build/Parnuma_FullscreenTest.framework.js.unityweb
+        Build/Parnuma_FullscreenTest.wasm.unityweb
       */
       const buildName = "Parnuma_FullscreenTest";
 
@@ -599,15 +612,10 @@
         loadingDebug.textContent = "Unity loader loaded. Creating instance...";
 
         createUnityInstance(canvas, config, function (progress) {
-          progressBarFull.style.width = progress * 100 + "%";
-
           const percent = Math.round(progress * 100);
 
-          /*
-            Optimized:
-            Only update text when the percentage changes.
-            This avoids excessive DOM text updates.
-          */
+          progressBarFull.style.transform = "scaleX(" + progress + ")";
+
           if (percent !== lastProgressPercent) {
             lastProgressPercent = percent;
             loadingDebug.textContent = "Loading: " + percent + "%";
@@ -620,7 +628,7 @@
             setTimeout(function () {
               fillScreen();
               triggerUnityResize();
-              delayedFullscreenCheck("Unity loaded");
+              startFullscreenRecoveryWatch("Unity loaded");
             }, 500);
           })
           .catch(function (err) {
