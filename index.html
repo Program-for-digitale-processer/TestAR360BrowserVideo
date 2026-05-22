@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <title>KuumAR fullscreen</title>
+  <title>KuumAR2 Test fullscreen</title>
 
   <meta
     name="viewport"
@@ -146,6 +146,20 @@
       line-height: 1.4;
     }
 
+    #restore-debug {
+      color: #fff;
+      font-family: sans-serif;
+      margin-top: 14px;
+      font-size: 13px;
+      opacity: 0.95;
+      text-align: center;
+      max-width: 90vw;
+      line-height: 1.4;
+      background: rgba(0, 0, 0, 0.45);
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+
     #orientation-warning {
       display: none;
       position: fixed;
@@ -176,7 +190,8 @@
     }
 
     @keyframes rotate-phone {
-      0%, 100% {
+      0%,
+      100% {
         transform: rotate(0deg);
       }
 
@@ -212,6 +227,7 @@
         The browser exited fullscreen during the location permission step.
         Tap to resume fullscreen.
       </p>
+      <p id="restore-debug">Waiting for restore action...</p>
     </div>
 
     <div id="unity-loading-bar">
@@ -228,6 +244,7 @@
     const loadingBar = document.querySelector("#unity-loading-bar");
     const progressBarFull = document.querySelector("#unity-progress-bar-full");
     const loadingDebug = document.querySelector("#loading-debug");
+    const restoreDebug = document.querySelector("#restore-debug");
     const startOverlay = document.querySelector("#custom-start-overlay");
     const playButton = document.querySelector("#btn-play");
     const restoreOverlay = document.querySelector("#restore-fullscreen-overlay");
@@ -235,6 +252,7 @@
 
     let started = false;
     let fullscreenWanted = false;
+    let restoreRequestInProgress = false;
 
     let fillScreenScheduled = false;
     let syntheticResizeInProgress = false;
@@ -255,6 +273,18 @@
       }
 
       return "isActive=" + ua.isActive + ", hasBeenActive=" + ua.hasBeenActive;
+    }
+
+    function setDebugText(message) {
+      if (loadingDebug) {
+        loadingDebug.textContent = message;
+      }
+
+      if (restoreDebug) {
+        restoreDebug.textContent = message;
+      }
+
+      console.log("[KuumAR Debug]", message);
     }
 
     function unityShowBanner(msg, type) {
@@ -380,8 +410,8 @@
       restoreOverlay.style.setProperty("display", visible ? "flex" : "none", "important");
       restoreOverlay.style.zIndex = "50000";
 
-      if (visible && loadingDebug) {
-        loadingDebug.textContent = "Fullscreen interrupted: " + reason;
+      if (visible) {
+        setDebugText("Overlay visible: " + reason);
       }
 
       console.log("[FullscreenRecovery] Overlay visible:", visible, "Reason:", reason);
@@ -395,9 +425,7 @@
       restoreOverlay.style.setProperty("display", "flex", "important");
       restoreOverlay.style.zIndex = "50000";
 
-      if (loadingDebug) {
-        loadingDebug.textContent = "Restore overlay shown: " + reason;
-      }
+      setDebugText("Restore overlay shown: " + reason);
 
       console.log("[FullscreenRecovery] Restore overlay forced:", reason);
     }
@@ -439,9 +467,11 @@
 
       const target = document.documentElement;
 
+      setDebugText("Requesting fullscreen. " + getUserActivationDebug());
+
       console.log("[Fullscreen] request reason:", reason);
       console.log("[Fullscreen] userActivation before request:", getUserActivationDebug());
-      console.log("[Fullscreen] event target:", target);
+      console.log("[Fullscreen] target:", target);
       console.log("[Fullscreen] fullscreenEnabled:", document.fullscreenEnabled);
       console.log("[Fullscreen] webkitFullscreenEnabled:", document.webkitFullscreenEnabled);
 
@@ -453,14 +483,7 @@
         } else if (target.webkitRequestFullscreen) {
           request = target.webkitRequestFullscreen();
         } else {
-          const msg = "Fullscreen API is not available on this browser.";
-
-          console.warn(msg);
-
-          if (loadingDebug) {
-            loadingDebug.textContent = msg;
-          }
-
+          setDebugText("Fullscreen API not available on this browser.");
           return Promise.resolve(false);
         }
 
@@ -472,11 +495,7 @@
                   const success = isNativeFullscreen();
 
                   if (success) {
-                    console.log("[Fullscreen] Success:", reason);
-
-                    if (loadingDebug) {
-                      loadingDebug.textContent = "Fullscreen restored.";
-                    }
+                    setDebugText("Fullscreen restored.");
 
                     try {
                       if (screen.orientation && screen.orientation.lock) {
@@ -492,13 +511,10 @@
                       console.warn("Orientation lock exception:", e);
                     }
                   } else {
-                    console.warn("[Fullscreen] Request resolved, but browser stayed windowed:", reason);
-
-                    if (loadingDebug) {
-                      loadingDebug.textContent =
-                        "Fullscreen request completed, but Chrome stayed windowed. " +
-                        getUserActivationDebug();
-                    }
+                    setDebugText(
+                      "Fullscreen request resolved, but Chrome stayed windowed. " +
+                      getUserActivationDebug()
+                    );
                   }
 
                   fillScreen();
@@ -510,17 +526,14 @@
             })
             .catch(function (e) {
               console.warn("[Fullscreen] Request rejected:", e);
-              console.warn("[Fullscreen] name:", e && e.name);
-              console.warn("[Fullscreen] message:", e && e.message);
 
-              if (loadingDebug) {
-                loadingDebug.textContent =
-                  "Fullscreen rejected: " +
-                  (e && e.name ? e.name + ": " : "") +
-                  (e && e.message ? e.message : e) +
-                  ". " +
-                  getUserActivationDebug();
-              }
+              setDebugText(
+                "Fullscreen rejected: " +
+                (e && e.name ? e.name + ": " : "") +
+                (e && e.message ? e.message : e) +
+                ". " +
+                getUserActivationDebug()
+              );
 
               fillScreen();
               triggerUnityResize();
@@ -534,19 +547,12 @@
             const success = isNativeFullscreen();
 
             if (success) {
-              console.log("[Fullscreen] WebKit fullscreen success:", reason);
-
-              if (loadingDebug) {
-                loadingDebug.textContent = "Fullscreen restored.";
-              }
+              setDebugText("Fullscreen restored.");
             } else {
-              console.warn("[Fullscreen] WebKit request finished, but browser stayed windowed:", reason);
-
-              if (loadingDebug) {
-                loadingDebug.textContent =
-                  "Fullscreen request sent, but browser stayed windowed. " +
-                  getUserActivationDebug();
-              }
+              setDebugText(
+                "Fullscreen request sent, but browser stayed windowed. " +
+                getUserActivationDebug()
+              );
             }
 
             fillScreen();
@@ -558,13 +564,12 @@
       } catch (e) {
         console.warn("[Fullscreen] Exception:", e);
 
-        if (loadingDebug) {
-          loadingDebug.textContent =
-            "Fullscreen exception: " +
-            (e && e.message ? e.message : e) +
-            ". " +
-            getUserActivationDebug();
-        }
+        setDebugText(
+          "Fullscreen exception: " +
+          (e && e.message ? e.message : e) +
+          ". " +
+          getUserActivationDebug()
+        );
 
         fillScreen();
         triggerUnityResize();
@@ -597,20 +602,12 @@
 
     document.addEventListener("fullscreenerror", function (e) {
       console.warn("[FullscreenError] fullscreenerror event:", e);
-
-      if (loadingDebug) {
-        loadingDebug.textContent =
-          "fullscreenerror event fired. " + getUserActivationDebug();
-      }
+      setDebugText("fullscreenerror event fired. " + getUserActivationDebug());
     });
 
     document.addEventListener("webkitfullscreenerror", function (e) {
       console.warn("[FullscreenError] webkitfullscreenerror event:", e);
-
-      if (loadingDebug) {
-        loadingDebug.textContent =
-          "webkitfullscreenerror event fired. " + getUserActivationDebug();
-      }
+      setDebugText("webkitfullscreenerror event fired. " + getUserActivationDebug());
     });
 
     document.addEventListener("visibilitychange", function () {
@@ -653,6 +650,9 @@
       });
     }
 
+    /*
+      Called from Unity through ActivateFullscreenInIndex.jslib
+    */
     window.LocationPermissionAboutToShow = function () {
       console.log("[FullscreenRecovery] LocationPermissionAboutToShow called");
 
@@ -661,9 +661,7 @@
       clearFullscreenCheckTimers();
       setRestoreOverlayVisible(false, "location permission starting");
 
-      if (loadingDebug) {
-        loadingDebug.textContent = "Location permission is opening...";
-      }
+      setDebugText("Location permission is opening...");
     };
 
     window.LocationPermissionFinished = function () {
@@ -671,10 +669,7 @@
 
       fullscreenWanted = true;
 
-      if (loadingDebug) {
-        loadingDebug.textContent =
-          "Location permission finished. Waiting before showing restore button...";
-      }
+      setDebugText("Location permission finished. Waiting before showing restore button...");
 
       clearFullscreenCheckTimers();
 
@@ -701,36 +696,55 @@
       forceShowRestoreOverlay("manual browser console test");
     };
 
-    restoreButton.onclick = function (event) {
-      event.preventDefault();
-      event.stopPropagation();
+    function handleRestoreFullscreenTap(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
 
+      if (restoreRequestInProgress) return;
+
+      restoreRequestInProgress = true;
       fullscreenWanted = true;
 
       const activationDebug = getUserActivationDebug();
 
-      console.log("[Restore Button] clicked");
-      console.log("[Restore Button] event.isTrusted:", event.isTrusted);
-      console.log("[Restore Button] userActivation:", activationDebug);
+      setDebugText("Restore tapped. " + activationDebug + ". Requesting fullscreen...");
 
-      if (loadingDebug) {
-        loadingDebug.textContent =
-          "Restore tapped. " + activationDebug + ". Requesting fullscreen...";
-      }
+      console.log("[Restore] tapped");
+      console.log("[Restore] event.isTrusted:", event ? event.isTrusted : "no event");
+      console.log("[Restore] userActivation:", activationDebug);
 
-      requestAppFullscreen("restore button click").then(function (success) {
-        console.log("[Restore Button] fullscreen success:", success);
-        console.log("[Restore Button] fullscreenElement:", document.fullscreenElement);
-        console.log("[Restore Button] webkitFullscreenElement:", document.webkitFullscreenElement);
+      /*
+        Important:
+        Do NOT hide the overlay here.
+        Only hide it after fullscreen success.
+      */
+      requestAppFullscreen("restore button").then(function (success) {
+        restoreRequestInProgress = false;
+
+        console.log("[Restore] fullscreen success:", success);
+        console.log("[Restore] fullscreenElement:", document.fullscreenElement);
+        console.log("[Restore] webkitFullscreenElement:", document.webkitFullscreenElement);
 
         if (success) {
           clearFullscreenCheckTimers();
+          setDebugText("Fullscreen restored.");
           setRestoreOverlayVisible(false, "fullscreen restored");
         } else {
-          setRestoreOverlayVisible(true, "restore clicked but Chrome stayed windowed");
+          setRestoreOverlayVisible(true, "Restore failed. Chrome stayed windowed.");
+          setDebugText("Restore failed. " + getUserActivationDebug());
         }
       });
-    };
+    }
+
+    restoreButton.addEventListener("pointerdown", handleRestoreFullscreenTap);
+
+    restoreButton.addEventListener("click", function (event) {
+      if (!restoreRequestInProgress) {
+        handleRestoreFullscreenTap(event);
+      }
+    });
 
     playButton.onclick = function () {
       if (started) return;
@@ -750,7 +764,7 @@
       startOverlay.style.display = "none";
       loadingBar.style.display = "block";
       progressBarFull.style.transform = "scaleX(0)";
-      loadingDebug.textContent = "Starting Unity loader...";
+      setDebugText("Starting Unity loader...");
 
       requestAppFullscreen("start button click");
 
@@ -780,7 +794,7 @@
       script.src = loaderUrl;
 
       script.onload = function () {
-        loadingDebug.textContent = "Unity loader loaded. Creating instance...";
+        setDebugText("Unity loader loaded. Creating instance...");
 
         createUnityInstance(canvas, config, function (progress) {
           const percent = Math.round(progress * 100);
@@ -789,7 +803,7 @@
 
           if (percent !== lastProgressPercent) {
             lastProgressPercent = percent;
-            loadingDebug.textContent = "Loading: " + percent + "%";
+            setDebugText("Loading: " + percent + "%");
           }
         })
           .then(function () {
