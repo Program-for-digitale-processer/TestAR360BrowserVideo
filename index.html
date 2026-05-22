@@ -172,8 +172,7 @@
     }
 
     @keyframes rotate-phone {
-      0%,
-      100% {
+      0%, 100% {
         transform: rotate(0deg);
       }
 
@@ -231,7 +230,6 @@
     const restoreButton = document.querySelector("#btn-restore");
 
     let started = false;
-    let isUnityLoaded = false;
     let fullscreenWanted = false;
 
     let fillScreenScheduled = false;
@@ -354,52 +352,14 @@
       }, 400);
     }
 
-    function requestAppFullscreen() {
-      fullscreenWanted = true;
-      fillScreen();
+    function clearFullscreenCheckTimers() {
+      clearTimeout(fullscreenCheckTimer1);
+      clearTimeout(fullscreenCheckTimer2);
+      clearTimeout(fullscreenCheckTimer3);
 
-      try {
-        let request = null;
-
-        if (container.requestFullscreen) {
-          request = container.requestFullscreen({ navigationUI: "hide" });
-        } else if (container.webkitRequestFullscreen) {
-          request = container.webkitRequestFullscreen();
-        }
-
-        if (request && typeof request.catch === "function") {
-          request.catch(function (e) {
-            console.warn("Fullscreen request failed:", e);
-          });
-        }
-      } catch (e) {
-        console.warn("Fullscreen request exception:", e);
-      }
-
-      setTimeout(function () {
-        if (isNativeFullscreen()) {
-          try {
-            if (screen.orientation && screen.orientation.lock) {
-              const lockRequest = screen.orientation.lock("landscape");
-
-              if (lockRequest && typeof lockRequest.catch === "function") {
-                lockRequest.catch(function (e) {
-                  console.warn("Orientation lock failed:", e);
-                });
-              }
-            }
-          } catch (e) {
-            console.warn("Orientation lock exception:", e);
-          }
-        }
-
-        fillScreen();
-        triggerUnityResize();
-      }, 150);
-    }
-
-    function shouldShowRestoreOverlay() {
-      return started && fullscreenWanted && !isNativeFullscreen();
+      fullscreenCheckTimer1 = null;
+      fullscreenCheckTimer2 = null;
+      fullscreenCheckTimer3 = null;
     }
 
     function setRestoreOverlayVisible(visible, reason) {
@@ -408,6 +368,29 @@
       if (visible && loadingDebug) {
         loadingDebug.textContent = "Fullscreen interrupted: " + reason;
       }
+    }
+
+    function shouldShowRestoreOverlay() {
+      return fullscreenWanted && !isNativeFullscreen();
+    }
+
+    function forceShowRestoreOverlay(reason) {
+      fullscreenWanted = true;
+
+      scheduleFillScreen();
+
+      if (isNativeFullscreen()) {
+        setRestoreOverlayVisible(false, reason + " / already fullscreen");
+        return;
+      }
+
+      restoreOverlay.style.display = "flex";
+
+      if (loadingDebug) {
+        loadingDebug.textContent = "Restore overlay shown: " + reason;
+      }
+
+      console.log("[FullscreenRecovery] Restore overlay shown:", reason);
     }
 
     function checkFullscreenAndMaybeShowRestore(reason) {
@@ -420,25 +403,11 @@
       }
     }
 
-    function clearFullscreenCheckTimers() {
-      clearTimeout(fullscreenCheckTimer1);
-      clearTimeout(fullscreenCheckTimer2);
-      clearTimeout(fullscreenCheckTimer3);
-
-      fullscreenCheckTimer1 = null;
-      fullscreenCheckTimer2 = null;
-      fullscreenCheckTimer3 = null;
-    }
-
     function startFullscreenRecoveryWatch(reason) {
-      if (!started || !fullscreenWanted) return;
+      if (!fullscreenWanted) return;
 
       clearFullscreenCheckTimers();
 
-      /*
-        These delays are intentional.
-        Android Chrome may still be closing the permission UI / black transition.
-      */
       fullscreenCheckTimer1 = setTimeout(function () {
         checkFullscreenAndMaybeShowRestore(reason + " / 800ms");
       }, 800);
@@ -450,6 +419,127 @@
       fullscreenCheckTimer3 = setTimeout(function () {
         checkFullscreenAndMaybeShowRestore(reason + " / 2500ms");
       }, 2500);
+    }
+
+    function requestAppFullscreen(reason) {
+      fullscreenWanted = true;
+
+      const target = container || document.documentElement;
+
+      try {
+        let request = null;
+
+        if (target.requestFullscreen) {
+          request = target.requestFullscreen({ navigationUI: "hide" });
+        } else if (target.webkitRequestFullscreen) {
+          request = target.webkitRequestFullscreen();
+        } else {
+          const msg = "Fullscreen API is not available on this browser.";
+          console.warn(msg);
+
+          if (loadingDebug) {
+            loadingDebug.textContent = msg;
+          }
+
+          return Promise.resolve(false);
+        }
+
+        if (request && typeof request.then === "function") {
+          return request
+            .then(function () {
+              return new Promise(function (resolve) {
+                setTimeout(function () {
+                  const success = isNativeFullscreen();
+
+                  if (success) {
+                    console.log("[Fullscreen] Success:", reason);
+
+                    if (loadingDebug) {
+                      loadingDebug.textContent = "Fullscreen restored.";
+                    }
+
+                    try {
+                      if (screen.orientation && screen.orientation.lock) {
+                        const lockRequest = screen.orientation.lock("landscape");
+
+                        if (lockRequest && typeof lockRequest.catch === "function") {
+                          lockRequest.catch(function (e) {
+                            console.warn("Orientation lock failed:", e);
+                          });
+                        }
+                      }
+                    } catch (e) {
+                      console.warn("Orientation lock exception:", e);
+                    }
+                  } else {
+                    console.warn("[Fullscreen] Request resolved, but browser stayed windowed:", reason);
+
+                    if (loadingDebug) {
+                      loadingDebug.textContent =
+                        "Fullscreen request completed, but Chrome stayed windowed.";
+                    }
+                  }
+
+                  fillScreen();
+                  triggerUnityResize();
+
+                  resolve(success);
+                }, 300);
+              });
+            })
+            .catch(function (e) {
+              console.warn("[Fullscreen] Request rejected:", e);
+
+              if (loadingDebug) {
+                loadingDebug.textContent =
+                  "Fullscreen rejected: " + (e && e.message ? e.message : e);
+              }
+
+              fillScreen();
+              triggerUnityResize();
+
+              return false;
+            });
+        }
+
+        return new Promise(function (resolve) {
+          setTimeout(function () {
+            const success = isNativeFullscreen();
+
+            if (success) {
+              console.log("[Fullscreen] WebKit fullscreen success:", reason);
+
+              if (loadingDebug) {
+                loadingDebug.textContent = "Fullscreen restored.";
+              }
+            } else {
+              console.warn("[Fullscreen] WebKit request finished, but browser stayed windowed:", reason);
+
+              if (loadingDebug) {
+                loadingDebug.textContent =
+                  "Fullscreen request sent, but browser stayed windowed.";
+              }
+            }
+
+            fillScreen();
+            triggerUnityResize();
+
+            resolve(success);
+          }, 500);
+        });
+      } catch (e) {
+        console.warn("[Fullscreen] Exception:", e);
+
+        if (loadingDebug) {
+          loadingDebug.textContent =
+            "Fullscreen exception: " + (e && e.message ? e.message : e);
+        }
+
+        fillScreen();
+        triggerUnityResize();
+
+        return Promise.resolve(false);
+      }
     }
 
     function handleFullscreenChange(reason) {
@@ -518,6 +608,8 @@
       Called from Unity through ActivateFullscreenInIndex.jslib
     */
     window.LocationPermissionAboutToShow = function () {
+      console.log("[FullscreenRecovery] LocationPermissionAboutToShow called");
+
       fullscreenWanted = true;
 
       clearFullscreenCheckTimers();
@@ -529,6 +621,10 @@
     };
 
     window.LocationPermissionFinished = function () {
+      console.log("[FullscreenRecovery] LocationPermissionFinished called");
+
+      fullscreenWanted = true;
+
       if (loadingDebug) {
         loadingDebug.textContent = "Location permission finished. Checking fullscreen...";
       }
@@ -537,22 +633,37 @@
     };
 
     window.ForceFullscreenRecoveryCheck = function () {
-      startFullscreenRecoveryWatch("Unity forced recovery check");
+      console.log("[FullscreenRecovery] ForceFullscreenRecoveryCheck called");
+
+      fullscreenWanted = true;
+
+      forceShowRestoreOverlay("manual recovery check");
+      startFullscreenRecoveryWatch("manual recovery check");
     };
 
-    restoreButton.onclick = function () {
-      setRestoreOverlayVisible(false, "restore clicked");
+    window.TestFullscreenOverlay = function () {
+      console.log("[FullscreenRecovery] TestFullscreenOverlay called");
+      forceShowRestoreOverlay("manual browser console test");
+    };
 
-      requestAppFullscreen();
+    restoreButton.onclick = function (event) {
+      event.preventDefault();
+      event.stopPropagation();
 
-      setTimeout(function () {
-        fillScreen();
-        triggerUnityResize();
+      fullscreenWanted = true;
 
-        if (!isNativeFullscreen() && fullscreenWanted) {
-          setRestoreOverlayVisible(true, "restore attempted but browser stayed windowed");
+      if (loadingDebug) {
+        loadingDebug.textContent = "Restore button tapped. Requesting fullscreen...";
+      }
+
+      requestAppFullscreen("restore button click").then(function (success) {
+        if (success) {
+          clearFullscreenCheckTimers();
+          setRestoreOverlayVisible(false, "fullscreen restored");
+        } else {
+          setRestoreOverlayVisible(true, "restore clicked but Chrome stayed windowed");
         }
-      }, 1000);
+      });
     };
 
     playButton.onclick = function () {
@@ -575,13 +686,13 @@
       progressBarFull.style.transform = "scaleX(0)";
       loadingDebug.textContent = "Starting Unity loader...";
 
-      requestAppFullscreen();
+      requestAppFullscreen("start button click");
 
       const buildUrl = "Build";
 
       /*
         IMPORTANT:
-        This must match your files in the Build folder.
+        This must match your Unity WebGL build files.
 
         Example:
         Build/Parnuma_FullscreenTest.loader.js
@@ -589,7 +700,7 @@
         Build/Parnuma_FullscreenTest.framework.js.unityweb
         Build/Parnuma_FullscreenTest.wasm.unityweb
       */
-      const buildName = "Parnuma_FullscreenTest";
+      const buildName = "ParnumaFullscreentest";
 
       const loaderUrl = buildUrl + "/" + buildName + ".loader.js";
 
@@ -623,7 +734,6 @@
         })
           .then(function () {
             loadingBar.style.display = "none";
-            isUnityLoaded = true;
 
             setTimeout(function () {
               fillScreen();
