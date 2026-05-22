@@ -240,7 +240,14 @@
 
     let started = false;
     let isUnityLoaded = false;
+
     let fillScreenScheduled = false;
+    let syntheticResizeInProgress = false;
+
+    let fullscreenCheckTimer1 = null;
+    let fullscreenCheckTimer2 = null;
+
+    let lastProgressPercent = -1;
 
     function unityShowBanner(msg, type) {
       if (type !== "error") return;
@@ -337,7 +344,14 @@
       });
     }
 
+    /*
+      Optimized:
+      - Still sends several resize events for Unity.
+      - But marks them as synthetic so our own resize handler does not trigger more fullscreen checks.
+    */
     function triggerUnityResize() {
+      syntheticResizeInProgress = true;
+
       window.dispatchEvent(new Event("resize"));
 
       setTimeout(function () {
@@ -346,11 +360,12 @@
 
       setTimeout(function () {
         window.dispatchEvent(new Event("resize"));
-      }, 300);
+      }, 250);
 
       setTimeout(function () {
         window.dispatchEvent(new Event("resize"));
-      }, 600);
+        syntheticResizeInProgress = false;
+      }, 500);
     }
 
     function requestAppFullscreen() {
@@ -400,9 +415,14 @@
       return started && isUnityLoaded && !isNativeFullscreen();
     }
 
+    /*
+      Optimized:
+      - Does NOT trigger Unity resize here.
+      - Only updates layout and overlay visibility.
+      - This avoids resize/check/resize feedback loops.
+    */
     function showRestoreOverlayIfNeeded(reason) {
       scheduleFillScreen();
-      triggerUnityResize();
 
       if (shouldShowRestoreOverlay()) {
         restoreOverlay.style.display = "flex";
@@ -415,20 +435,24 @@
       }
     }
 
+    /*
+      Optimized:
+      - Cancels old timers before creating new ones.
+      - Prevents many stacked delayed checks during viewport changes.
+    */
     function delayedFullscreenCheck(reason) {
       showRestoreOverlayIfNeeded(reason);
 
-      setTimeout(function () {
-        showRestoreOverlayIfNeeded(reason + " / 300ms");
-      }, 300);
+      clearTimeout(fullscreenCheckTimer1);
+      clearTimeout(fullscreenCheckTimer2);
 
-      setTimeout(function () {
-        showRestoreOverlayIfNeeded(reason + " / 1000ms");
-      }, 1000);
+      fullscreenCheckTimer1 = setTimeout(function () {
+        showRestoreOverlayIfNeeded(reason + " / 500ms");
+      }, 500);
 
-      setTimeout(function () {
-        showRestoreOverlayIfNeeded(reason + " / 2000ms");
-      }, 2000);
+      fullscreenCheckTimer2 = setTimeout(function () {
+        showRestoreOverlayIfNeeded(reason + " / 1500ms");
+      }, 1500);
     }
 
     function handleFullscreenChange() {
@@ -437,7 +461,7 @@
       if (isNativeFullscreen()) {
         restoreOverlay.style.display = "none";
       } else {
-        showRestoreOverlayIfNeeded("fullscreenchange");
+        delayedFullscreenCheck("fullscreenchange");
       }
 
       scheduleFillScreen();
@@ -461,20 +485,34 @@
       delayedFullscreenCheck("pageshow");
     });
 
+    /*
+      Optimized:
+      - If the resize event was fired by triggerUnityResize(), do not run fullscreen checks again.
+      - This prevents the main performance problem.
+    */
     window.addEventListener("resize", function () {
       scheduleFillScreen();
-      delayedFullscreenCheck("window resize");
+
+      if (!syntheticResizeInProgress) {
+        delayedFullscreenCheck("window resize");
+      }
     });
 
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", function () {
         scheduleFillScreen();
-        delayedFullscreenCheck("visualViewport resize");
+
+        if (!syntheticResizeInProgress) {
+          delayedFullscreenCheck("visualViewport resize");
+        }
       });
 
       window.visualViewport.addEventListener("scroll", function () {
         scheduleFillScreen();
-        delayedFullscreenCheck("visualViewport scroll");
+
+        if (!syntheticResizeInProgress) {
+          delayedFullscreenCheck("visualViewport scroll");
+        }
       });
     }
 
@@ -518,16 +556,7 @@
 
       /*
         IMPORTANT:
-        Set this to match the actual files in your Build folder.
-
-        If your files are:
-          Build/Parnumaa_FullscreenTesting.loader.js
-          Build/Parnumaa_FullscreenTesting.data.unityweb
-          Build/Parnumaa_FullscreenTesting.framework.js.unityweb
-          Build/Parnumaa_FullscreenTesting.wasm.unityweb
-
-        then keep:
-          const buildName = "Parnumaa_FullscreenTest";
+        This must match your actual files in the Build folder.
 
         If your files are:
           Build/Parnuma_FullscreenTest.loader.js
@@ -535,8 +564,17 @@
           Build/Parnuma_FullscreenTest.framework.js.unityweb
           Build/Parnuma_FullscreenTest.wasm.unityweb
 
-        then use:
+        use:
           const buildName = "Parnuma_FullscreenTest";
+
+        If your files are:
+          Build/Parnumaa_FullscreenTesting.loader.js
+          Build/Parnumaa_FullscreenTesting.data.unityweb
+          Build/Parnumaa_FullscreenTesting.framework.js.unityweb
+          Build/Parnumaa_FullscreenTesting.wasm.unityweb
+
+        use:
+          const buildName = "Parnumaa_FullscreenTesting";
       */
       const buildName = "Parnuma_FullscreenTest";
 
@@ -562,7 +600,18 @@
 
         createUnityInstance(canvas, config, function (progress) {
           progressBarFull.style.width = progress * 100 + "%";
-          loadingDebug.textContent = "Loading: " + Math.round(progress * 100) + "%";
+
+          const percent = Math.round(progress * 100);
+
+          /*
+            Optimized:
+            Only update text when the percentage changes.
+            This avoids excessive DOM text updates.
+          */
+          if (percent !== lastProgressPercent) {
+            lastProgressPercent = percent;
+            loadingDebug.textContent = "Loading: " + percent + "%";
+          }
         })
           .then(function () {
             loadingBar.style.display = "none";
