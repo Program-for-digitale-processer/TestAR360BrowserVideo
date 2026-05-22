@@ -11,7 +11,6 @@
   />
 
   <style>
-    /* 1. LOCK THE VIEWPORT */
     html,
     body {
       margin: 0;
@@ -54,7 +53,6 @@
       height: 100vh;
     }
 
-    /* 2. START BUTTON OVERLAY */
     #custom-start-overlay {
       position: absolute;
       inset: 0;
@@ -78,7 +76,6 @@
       font-weight: bold;
     }
 
-    /* 3. LOADING BAR */
     #unity-loading-bar {
       display: none;
       position: absolute;
@@ -86,7 +83,7 @@
       left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
-      z-index: 1500; /* Increased to keep it safely stacked above the WebGL canvas layer */
+      z-index: 1500;
     }
 
     #unity-progress-bar-empty {
@@ -106,7 +103,14 @@
       transition: width 0.2s;
     }
 
-    /* 4. ORIENTATION WARNING */
+    #loading-debug {
+      color: white;
+      font-family: sans-serif;
+      margin-top: 10px;
+      font-size: 12px;
+      opacity: 0.75;
+    }
+
     #orientation-warning {
       display: none;
       position: fixed;
@@ -147,7 +151,6 @@
       }
     }
 
-    /* 5. RESTORE FULLSCREEN OVERLAY */
     #restore-fullscreen-overlay {
       display: none;
       position: absolute;
@@ -214,6 +217,7 @@
       <div id="unity-progress-bar-empty">
         <div id="unity-progress-bar-full"></div>
       </div>
+      <div id="loading-debug">Preparing...</div>
     </div>
   </div>
 
@@ -222,6 +226,7 @@
     const canvas = document.querySelector("#unity-canvas");
     const loadingBar = document.querySelector("#unity-loading-bar");
     const progressBarFull = document.querySelector("#unity-progress-bar-full");
+    const loadingDebug = document.querySelector("#loading-debug");
     const startOverlay = document.querySelector("#custom-start-overlay");
     const playButton = document.querySelector("#btn-play");
     const restoreOverlay = document.querySelector("#restore-fullscreen-overlay");
@@ -269,6 +274,7 @@
 
       const button = document.createElement("button");
       button.textContent = "REFRESH";
+
       Object.assign(button.style, {
         padding: "10px 20px",
         background: "#2196F3",
@@ -277,6 +283,7 @@
         borderRadius: "5px",
         cursor: "pointer"
       });
+
       button.onclick = function () {
         location.reload();
       };
@@ -335,30 +342,47 @@
       });
     }
 
-    // Fixed to be synchronous with the user gesture click and completely non-blocking
     function requestAppFullscreen() {
       fillScreen();
 
       try {
+        let request = null;
+
         if (container.requestFullscreen) {
-          container.requestFullscreen().catch(function(e) { console.warn(e); });
+          request = container.requestFullscreen({ navigationUI: "hide" });
         } else if (container.webkitRequestFullscreen) {
-          container.webkitRequestFullscreen().catch(function(e) { console.warn(e); });
+          request = container.webkitRequestFullscreen();
+        }
+
+        if (request && typeof request.catch === "function") {
+          request.catch(function (e) {
+            console.warn("Fullscreen request failed:", e);
+          });
         }
       } catch (e) {
-        console.warn("Fullscreen request failed:", e);
+        console.warn("Fullscreen request exception:", e);
       }
 
-      try {
-        if (screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock("landscape").catch(function(e) { console.warn(e); });
+      setTimeout(function () {
+        if (isNativeFullscreen()) {
+          try {
+            if (screen.orientation && screen.orientation.lock) {
+              const lockRequest = screen.orientation.lock("landscape");
+
+              if (lockRequest && typeof lockRequest.catch === "function") {
+                lockRequest.catch(function (e) {
+                  console.warn("Orientation lock failed:", e);
+                });
+              }
+            }
+          } catch (e) {
+            console.warn("Orientation lock exception:", e);
+          }
         }
-      } catch (e) {
-        console.warn("Orientation lock failed:", e);
-      }
 
-      fillScreen();
-      triggerUnityResize();
+        fillScreen();
+        triggerUnityResize();
+      }, 100);
     }
 
     function handleFullscreenChange() {
@@ -399,17 +423,24 @@
       started = true;
       startOverlay.style.display = "none";
       loadingBar.style.display = "block";
+      progressBarFull.style.width = "0%";
+      loadingDebug.textContent = "Starting Unity loader...";
 
-      // Fire and forget without blocking script execution
       requestAppFullscreen();
 
       const buildUrl = "Build";
-      const loaderUrl = buildUrl + "/Parnumaa_FullscreenTesting.loader.js";
+
+      /*
+        IMPORTANT:
+        These filenames are from your OLD WORKING version.
+        If your actual Build folder has different names, change these 4 lines.
+      */
+      const loaderUrl = buildUrl + "/Parnuma_FullscreenTest.loader.js";
 
       const config = {
-        dataUrl: buildUrl + "/Parnumaa_FullscreenTesting.data.unityweb",
-        frameworkUrl: buildUrl + "/Parnumaa_FullscreenTesting.framework.js.unityweb",
-        codeUrl: buildUrl + "/Parnumaa_FullscreenTesting.wasm.unityweb",
+        dataUrl: buildUrl + "/Parnuma_FullscreenTest.data.unityweb",
+        frameworkUrl: buildUrl + "/Parnuma_FullscreenTest.framework.js.unityweb",
+        codeUrl: buildUrl + "/Parnuma_FullscreenTest.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "via",
         productName: "KuumAR",
@@ -422,8 +453,11 @@
       script.src = loaderUrl;
 
       script.onload = function () {
+        loadingDebug.textContent = "Unity loader loaded. Creating instance...";
+
         createUnityInstance(canvas, config, function (progress) {
-          progressBarFull.style.width = (progress * 100) + "%";
+          progressBarFull.style.width = progress * 100 + "%";
+          loadingDebug.textContent = "Loading: " + Math.round(progress * 100) + "%";
         })
           .then(function () {
             loadingBar.style.display = "none";
@@ -456,6 +490,10 @@
 
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", function () {
+        scheduleFillScreen();
+      });
+
+      window.visualViewport.addEventListener("scroll", function () {
         scheduleFillScreen();
       });
     }
