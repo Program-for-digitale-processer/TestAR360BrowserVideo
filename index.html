@@ -1,833 +1,258 @@
 <!DOCTYPE html>
 <html lang="en-us">
 <head>
-  <meta charset="utf-8" />
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <title>KuumAR2 Test fullscreen</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>KuumAR9 Test Overlay</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
-  <meta
-    name="viewport"
-    content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-  />
+    <style>
+        /* 1. LOCK THE VIEWPORT */
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: black;
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            position: fixed;
+            left: 0;
+            top: 0;
+            touch-action: none;
+            overscroll-behavior: none;
+        }
 
-  <style>
-    html,
-    body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      height: 100dvh;
-      overflow: hidden;
-      background: #000;
-      position: fixed;
-      inset: 0;
-      touch-action: none;
-      overscroll-behavior: none;
-    }
+        #unity-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+        }
 
-    #unity-container {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-      background: #000;
-      overflow: hidden;
-    }
+        #unity-canvas {
+            background: black;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
 
-    #unity-canvas {
-      background: #000;
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
+        /* 2. THE START BUTTON OVERLAY */
+        #custom-start-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
 
-    #unity-container:fullscreen,
-    html:fullscreen,
-    body:fullscreen {
-      width: 100vw;
-      height: 100vh;
-    }
+        #btn-play {
+            padding: 20px 40px;
+            font-size: 24px;
+            color: white;
+            background: #2196F3;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: sans-serif;
+            font-weight: bold;
+        }
 
-    #unity-container:-webkit-full-screen,
-    html:-webkit-full-screen,
-    body:-webkit-full-screen {
-      width: 100vw;
-      height: 100vh;
-    }
+        /* 3. LOADING BAR */
+        #unity-loading-bar {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
 
-    #custom-start-overlay,
-    #restore-fullscreen-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.9);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      box-sizing: border-box;
-      padding: 20px;
-    }
+        #unity-progress-bar-empty {
+            width: 200px;
+            height: 10px;
+            background: #333;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
 
-    #custom-start-overlay {
-      z-index: 1000;
-    }
+        #unity-progress-bar-full {
+            width: 0%;
+            height: 100%;
+            background: white;
+            border-radius: 5px;
+            transition: width 0.2s;
+        }
 
-    #restore-fullscreen-overlay {
-      display: none;
-      background: rgba(0, 0, 0, 0.85);
-      z-index: 50000;
-    }
+        /* 4. ORIENTATION WARNING STYLE */
+        #orientation-warning {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #000;
+            color: white;
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-family: sans-serif;
+        }
 
-    #btn-play,
-    #btn-restore {
-      padding: 20px 40px;
-      font-size: 24px;
-      color: #fff;
-      background: #2196f3;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      font-family: sans-serif;
-      font-weight: bold;
-    }
+        /* "any-pointer: coarse" means: If the device has a touchscreen anywhere, trigger this */
+        @media screen and (orientation: portrait) and (any-pointer: coarse) {
+            #orientation-warning {
+                display: flex;
+            }
+        }
 
-    #btn-restore {
-      background: #4caf50;
-      padding: 15px 30px;
-      font-size: 20px;
-    }
+        .rotate-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            display: inline-block;
+            animation: rotate-phone 2s ease-in-out infinite;
+        }
 
-    #unity-loading-bar {
-      display: none;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      z-index: 1500;
-    }
+        @keyframes rotate-phone {
+            0% {
+                transform: rotate(0deg);
+            }
 
-    #unity-progress-bar-empty {
-      width: 200px;
-      height: 10px;
-      background: #333;
-      margin-top: 10px;
-      border-radius: 5px;
-      overflow: hidden;
-    }
+            50% {
+                transform: rotate(-90deg);
+            }
 
-    #unity-progress-bar-full {
-      width: 100%;
-      height: 100%;
-      background: #fff;
-      border-radius: 5px;
-      transform: scaleX(0);
-      transform-origin: left center;
-      transition: transform 0.2s linear;
-    }
-
-    #loading-debug,
-    .overlay-text {
-      color: #fff;
-      font-family: sans-serif;
-      margin-top: 10px;
-      font-size: 12px;
-      opacity: 0.75;
-      text-align: center;
-    }
-
-    .overlay-text {
-      font-size: 14px;
-      padding: 0 20px;
-      max-width: 520px;
-      line-height: 1.4;
-    }
-
-    #restore-debug {
-      color: #fff;
-      font-family: sans-serif;
-      margin-top: 14px;
-      font-size: 13px;
-      opacity: 0.95;
-      text-align: center;
-      max-width: 90vw;
-      line-height: 1.4;
-      background: rgba(0, 0, 0, 0.45);
-      padding: 8px 12px;
-      border-radius: 8px;
-    }
-
-    #orientation-warning {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: #000;
-      color: #fff;
-      z-index: 40000;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      font-family: sans-serif;
-      padding: 20px;
-      box-sizing: border-box;
-    }
-
-    @media screen and (orientation: portrait) and (max-width: 1024px) {
-      #orientation-warning {
-        display: flex;
-      }
-    }
-
-    .rotate-icon {
-      font-size: 60px;
-      margin-bottom: 20px;
-      display: inline-block;
-      animation: rotate-phone 2s ease-in-out infinite;
-    }
-
-    @keyframes rotate-phone {
-      0%,
-      100% {
-        transform: rotate(0deg);
-      }
-
-      50% {
-        transform: rotate(-90deg);
-      }
-    }
-  </style>
+            100% {
+                transform: rotate(0deg);
+            }
+        }
+    </style>
 </head>
 
 <body>
-  <div id="orientation-warning">
-    <div class="rotate-icon">&#128241;</div>
-    <p style="font-weight: bold;">Please rotate your device</p>
-    <p style="opacity: 0.7; font-size: 0.9em;">
-      Landscape mode is required for this experience.
-    </p>
-  </div>
+    <div id="orientation-warning">
+        <div class="rotate-icon">&#128241;</div>
+        <p style="font-weight: bold;">Please rotate your device</p>
+        <p style="opacity: 0.7; font-size: 0.9em;">Landscape mode is required for this experience.</p>
 
-  <div id="unity-container">
-    <canvas id="unity-canvas" tabindex="-1"></canvas>
-
-    <div id="custom-start-overlay">
-      <button id="btn-play">START EXPERIENCE</button>
-      <p class="overlay-text">
-        Tap to begin. Make sure the device is in landscape position.
-      </p>
     </div>
 
-    <div id="restore-fullscreen-overlay">
-      <button id="btn-restore">RESTORE FULLSCREEN</button>
-      <p class="overlay-text">
-        The browser exited fullscreen during the location permission step.
-        Tap to resume fullscreen.
-      </p>
-      <p id="restore-debug">Waiting for restore action...</p>
+    <div id="unity-container">
+        <canvas id="unity-canvas" tabindex="-1"></canvas>
+
+        <div id="custom-start-overlay">
+            <button id="btn-play">START EXPERIENCE</button>
+            <p style="color:white; margin-top:15px; font-family: sans-serif; opacity: 0.7; text-align:center; padding: 0 20px;">
+                Tap to begin. Make sure the device is in Landscape position.
+            </p>
+            <p style="color: white; text-align: center; opacity: 0.7; font-size: 0.9em; margin-top: 10px;">
+                If the screen doesn’t rotate, turn on rotation in Quick Settings
+
+                <svg xmlns="http://www.w3.org/2000/svg" height="1.2em" viewBox="0 0 24 24" width="1.2em" fill="currentColor" style="vertical-align: -0.2em; margin: 0 2px;">
+                    <path d="M0 0h24v24H0V0z" fill="none" />
+                    <path d="M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 18.29 0 12 0l-.66.03 3.81 3.81 1.33-1.32zm-6.25-.77c-.59-.59-1.54-.59-2.12 0L1.75 8.11c-.59.59-.59 1.54 0 2.12l12.02 12.02c.59.59 1.54.59 2.12 0l6.36-6.36c.59-.59.59-1.54 0-2.12L10.23 1.75zm4.6 19.44L2.81 9.17l6.36-6.36 12.02 12.02-6.36 6.36zm-7.31.29C4.25 19.94 1.91 16.76 1.55 13H.05C.56 19.16 5.71 24 12 24l.66-.03-3.81-3.81-1.33 1.32z" />
+                </svg>
+
+                or Control Center
+
+                <svg xmlns="http://www.w3.org/2000/svg" height="1.45em" viewBox="0 0 24 24" width="1.45em" fill="currentColor" style="vertical-align: -0.32em; margin: 0 0px 0 -2px;">
+                    <path d="M12 4c4.41 0 8 3.59 8 8s-3.59 8-8 8c-1.37 0-2.67-.35-3.82-.96l1.24-1.8A5.952 5.952 0 0012 18c3.31 0 6-2.69 6-6s-2.69-6-6-6v3l-4-4 4-4v3zm-2.5 5.5v-1c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v1c.83 0 1.5.67 1.5 1.5v4c0 .83-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5v-4c0-.83.67-1.5 1.5-1.5zm1 0h3v-1c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v1z" />
+                </svg>
+            </p>
+        </div>
+
+        <div id="unity-loading-bar">
+            <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
+        </div>
     </div>
 
-    <div id="unity-loading-bar">
-      <div id="unity-progress-bar-empty">
-        <div id="unity-progress-bar-full"></div>
-      </div>
-      <div id="loading-debug">Preparing...</div>
-    </div>
-  </div>
-
-  <script>
+    <script>
     const container = document.querySelector("#unity-container");
     const canvas = document.querySelector("#unity-canvas");
     const loadingBar = document.querySelector("#unity-loading-bar");
     const progressBarFull = document.querySelector("#unity-progress-bar-full");
-    const loadingDebug = document.querySelector("#loading-debug");
-    const restoreDebug = document.querySelector("#restore-debug");
     const startOverlay = document.querySelector("#custom-start-overlay");
     const playButton = document.querySelector("#btn-play");
-    const restoreOverlay = document.querySelector("#restore-fullscreen-overlay");
-    const restoreButton = document.querySelector("#btn-restore");
-
-    let started = false;
-    let fullscreenWanted = false;
-    let restoreRequestInProgress = false;
-
-    let fillScreenScheduled = false;
-    let syntheticResizeInProgress = false;
-
-    let fullscreenCheckTimer1 = null;
-    let fullscreenCheckTimer2 = null;
-    let fullscreenCheckTimer3 = null;
-
-    let lastWidth = 0;
-    let lastHeight = 0;
-    let lastProgressPercent = -1;
-
-    function getUserActivationDebug() {
-      const ua = navigator.userActivation;
-
-      if (!ua) {
-        return "navigator.userActivation not supported";
-      }
-
-      return "isActive=" + ua.isActive + ", hasBeenActive=" + ua.hasBeenActive;
-    }
-
-    function setDebugText(message) {
-      if (loadingDebug) {
-        loadingDebug.textContent = message;
-      }
-
-      if (restoreDebug) {
-        restoreDebug.textContent = message;
-      }
-
-      console.log("[KuumAR Debug]", message);
-    }
 
     function unityShowBanner(msg, type) {
-      if (type !== "error") return;
-      if (document.getElementById("unity-crash-overlay")) return;
-
-      const overlay = document.createElement("div");
-      overlay.id = "unity-crash-overlay";
-
-      Object.assign(overlay.style, {
-        position: "fixed",
-        inset: "0",
-        width: "100%",
-        height: "100%",
-        backgroundColor: "rgba(0,0,0,0.95)",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: "60000",
-        color: "white",
-        fontFamily: "sans-serif",
-        textAlign: "center",
-        padding: "20px",
-        boxSizing: "border-box"
-      });
-
-      const box = document.createElement("div");
-
-      const title = document.createElement("h2");
-      title.textContent = "Error";
-      title.style.color = "#ff4444";
-
-      const message = document.createElement("p");
-      message.textContent = String(msg);
-
-      const button = document.createElement("button");
-      button.textContent = "REFRESH";
-
-      Object.assign(button.style, {
-        padding: "10px 20px",
-        background: "#2196F3",
-        border: "none",
-        color: "white",
-        borderRadius: "5px",
-        cursor: "pointer"
-      });
-
-      button.onclick = function () {
-        location.reload();
-      };
-
-      box.appendChild(title);
-      box.appendChild(message);
-      box.appendChild(button);
-      overlay.appendChild(box);
-      document.body.appendChild(overlay);
-    }
-
-    function isNativeFullscreen() {
-      return !!(
-        document.fullscreenElement ||
-        document.webkitFullscreenElement
-      );
+      if (type !== 'error') return;
+      if (!document.getElementById('unity-crash-overlay')) {
+        var overlay = document.createElement('div');
+        overlay.id = 'unity-crash-overlay';
+        Object.assign(overlay.style, {
+          position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+          backgroundColor: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column',
+          justifyContent: 'center', alignItems: 'center', zIndex: '9999',
+          color: 'white', fontFamily: 'sans-serif', textAlign: 'center', padding: '20px'
+        });
+        overlay.innerHTML = `<div><h2 style="color:#ff4444">Error</h2><p>${msg}</p>
+        <button onclick="location.reload()" style="padding:10px 20px; background:#2196F3; border:none; color:white; border-radius:5px;">REFRESH</button></div>`;
+        document.body.appendChild(overlay);
+      }
     }
 
     function fillScreen() {
       const vv = window.visualViewport;
-      const width = vv ? vv.width : window.innerWidth;
-      const height = vv ? vv.height : window.innerHeight;
-
-      if (width !== lastWidth || height !== lastHeight) {
-        lastWidth = width;
-        lastHeight = height;
-
-        container.style.width = width + "px";
-        container.style.height = height + "px";
-
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
-      }
-
+      container.style.height = (vv ? vv.height : window.innerHeight) + "px";
+      container.style.width = (vv ? vv.width : window.innerWidth) + "px";
       window.scrollTo(0, 0);
     }
 
-    function scheduleFillScreen() {
-      if (fillScreenScheduled) return;
-
-      fillScreenScheduled = true;
-
-      requestAnimationFrame(function () {
-        fillScreenScheduled = false;
-        fillScreen();
-      });
-    }
-
-    function triggerUnityResize() {
-      syntheticResizeInProgress = true;
-
-      window.dispatchEvent(new Event("resize"));
-
-      setTimeout(function () {
-        window.dispatchEvent(new Event("resize"));
-      }, 100);
-
-      setTimeout(function () {
-        window.dispatchEvent(new Event("resize"));
-        syntheticResizeInProgress = false;
-      }, 400);
-    }
-
-    function clearFullscreenCheckTimers() {
-      clearTimeout(fullscreenCheckTimer1);
-      clearTimeout(fullscreenCheckTimer2);
-      clearTimeout(fullscreenCheckTimer3);
-
-      fullscreenCheckTimer1 = null;
-      fullscreenCheckTimer2 = null;
-      fullscreenCheckTimer3 = null;
-    }
-
-    function setRestoreOverlayVisible(visible, reason) {
-      restoreOverlay.style.setProperty("display", visible ? "flex" : "none", "important");
-      restoreOverlay.style.zIndex = "50000";
-
-      if (visible) {
-        setDebugText("Overlay visible: " + reason);
-      }
-
-      console.log("[FullscreenRecovery] Overlay visible:", visible, "Reason:", reason);
-    }
-
-    function forceShowRestoreOverlay(reason) {
-      fullscreenWanted = true;
-
-      scheduleFillScreen();
-
-      restoreOverlay.style.setProperty("display", "flex", "important");
-      restoreOverlay.style.zIndex = "50000";
-
-      setDebugText("Restore overlay shown: " + reason);
-
-      console.log("[FullscreenRecovery] Restore overlay forced:", reason);
-    }
-
-    function shouldShowRestoreOverlay() {
-      return fullscreenWanted && !isNativeFullscreen();
-    }
-
-    function checkFullscreenAndMaybeShowRestore(reason) {
-      scheduleFillScreen();
-
-      if (shouldShowRestoreOverlay()) {
-        setRestoreOverlayVisible(true, reason);
-      } else {
-        setRestoreOverlayVisible(false, reason);
-      }
-    }
-
-    function startFullscreenRecoveryWatch(reason) {
-      if (!fullscreenWanted) return;
-
-      clearFullscreenCheckTimers();
-
-      fullscreenCheckTimer1 = setTimeout(function () {
-        checkFullscreenAndMaybeShowRestore(reason + " / 800ms");
-      }, 800);
-
-      fullscreenCheckTimer2 = setTimeout(function () {
-        checkFullscreenAndMaybeShowRestore(reason + " / 1500ms");
-      }, 1500);
-
-      fullscreenCheckTimer3 = setTimeout(function () {
-        checkFullscreenAndMaybeShowRestore(reason + " / 2500ms");
-      }, 2500);
-    }
-
-    function requestAppFullscreen(reason) {
-      fullscreenWanted = true;
-
-      const target = document.documentElement;
-
-      setDebugText("Requesting fullscreen. " + getUserActivationDebug());
-
-      console.log("[Fullscreen] request reason:", reason);
-      console.log("[Fullscreen] userActivation before request:", getUserActivationDebug());
-      console.log("[Fullscreen] target:", target);
-      console.log("[Fullscreen] fullscreenEnabled:", document.fullscreenEnabled);
-      console.log("[Fullscreen] webkitFullscreenEnabled:", document.webkitFullscreenEnabled);
-
-      try {
-        let request = null;
-
-        if (target.requestFullscreen) {
-          request = target.requestFullscreen({ navigationUI: "hide" });
-        } else if (target.webkitRequestFullscreen) {
-          request = target.webkitRequestFullscreen();
-        } else {
-          setDebugText("Fullscreen API not available on this browser.");
-          return Promise.resolve(false);
-        }
-
-        if (request && typeof request.then === "function") {
-          return request
-            .then(function () {
-              return new Promise(function (resolve) {
-                setTimeout(function () {
-                  const success = isNativeFullscreen();
-
-                  if (success) {
-                    setDebugText("Fullscreen restored.");
-
-                    try {
-                      if (screen.orientation && screen.orientation.lock) {
-                        const lockRequest = screen.orientation.lock("landscape");
-
-                        if (lockRequest && typeof lockRequest.catch === "function") {
-                          lockRequest.catch(function (e) {
-                            console.warn("Orientation lock failed:", e);
-                          });
-                        }
-                      }
-                    } catch (e) {
-                      console.warn("Orientation lock exception:", e);
-                    }
-                  } else {
-                    setDebugText(
-                      "Fullscreen request resolved, but Chrome stayed windowed. " +
-                      getUserActivationDebug()
-                    );
-                  }
-
-                  fillScreen();
-                  triggerUnityResize();
-
-                  resolve(success);
-                }, 300);
-              });
-            })
-            .catch(function (e) {
-              console.warn("[Fullscreen] Request rejected:", e);
-
-              setDebugText(
-                "Fullscreen rejected: " +
-                (e && e.name ? e.name + ": " : "") +
-                (e && e.message ? e.message : e) +
-                ". " +
-                getUserActivationDebug()
-              );
-
-              fillScreen();
-              triggerUnityResize();
-
-              return false;
-            });
-        }
-
-        return new Promise(function (resolve) {
-          setTimeout(function () {
-            const success = isNativeFullscreen();
-
-            if (success) {
-              setDebugText("Fullscreen restored.");
-            } else {
-              setDebugText(
-                "Fullscreen request sent, but browser stayed windowed. " +
-                getUserActivationDebug()
-              );
-            }
-
-            fillScreen();
-            triggerUnityResize();
-
-            resolve(success);
-          }, 500);
-        });
-      } catch (e) {
-        console.warn("[Fullscreen] Exception:", e);
-
-        setDebugText(
-          "Fullscreen exception: " +
-          (e && e.message ? e.message : e) +
-          ". " +
-          getUserActivationDebug()
-        );
-
-        fillScreen();
-        triggerUnityResize();
-
-        return Promise.resolve(false);
-      }
-    }
-
-    function handleFullscreenChange(reason) {
-      if (!started) return;
-
-      if (isNativeFullscreen()) {
-        clearFullscreenCheckTimers();
-        setRestoreOverlayVisible(false, reason);
-      } else {
-        startFullscreenRecoveryWatch(reason);
-      }
-
-      scheduleFillScreen();
-      triggerUnityResize();
-    }
-
-    document.addEventListener("fullscreenchange", function () {
-      handleFullscreenChange("fullscreenchange");
-    });
-
-    document.addEventListener("webkitfullscreenchange", function () {
-      handleFullscreenChange("webkitfullscreenchange");
-    });
-
-    document.addEventListener("fullscreenerror", function (e) {
-      console.warn("[FullscreenError] fullscreenerror event:", e);
-      setDebugText("fullscreenerror event fired. " + getUserActivationDebug());
-    });
-
-    document.addEventListener("webkitfullscreenerror", function (e) {
-      console.warn("[FullscreenError] webkitfullscreenerror event:", e);
-      setDebugText("webkitfullscreenerror event fired. " + getUserActivationDebug());
-    });
-
-    document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState === "visible") {
-        startFullscreenRecoveryWatch("visibilitychange visible");
-      }
-    });
-
-    window.addEventListener("focus", function () {
-      startFullscreenRecoveryWatch("window focus");
-    });
-
-    window.addEventListener("pageshow", function () {
-      startFullscreenRecoveryWatch("pageshow");
-    });
-
-    window.addEventListener("resize", function () {
-      scheduleFillScreen();
-
-      if (!syntheticResizeInProgress) {
-        startFullscreenRecoveryWatch("window resize");
-      }
-    });
-
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", function () {
-        scheduleFillScreen();
-
-        if (!syntheticResizeInProgress) {
-          startFullscreenRecoveryWatch("visualViewport resize");
-        }
-      });
-
-      window.visualViewport.addEventListener("scroll", function () {
-        scheduleFillScreen();
-
-        if (!syntheticResizeInProgress) {
-          startFullscreenRecoveryWatch("visualViewport scroll");
-        }
-      });
-    }
-
-    /*
-      Called from Unity through ActivateFullscreenInIndex.jslib
-    */
-    window.LocationPermissionAboutToShow = function () {
-      console.log("[FullscreenRecovery] LocationPermissionAboutToShow called");
-
-      fullscreenWanted = true;
-
-      clearFullscreenCheckTimers();
-      setRestoreOverlayVisible(false, "location permission starting");
-
-      setDebugText("Location permission is opening...");
-    };
-
-    window.LocationPermissionFinished = function () {
-      console.log("[FullscreenRecovery] LocationPermissionFinished called");
-
-      fullscreenWanted = true;
-
-      setDebugText("Location permission finished. Waiting before showing restore button...");
-
-      clearFullscreenCheckTimers();
-
-      setTimeout(function () {
-        forceShowRestoreOverlay("location permission finished / forced 1000ms");
-      }, 1000);
-
-      setTimeout(function () {
-        forceShowRestoreOverlay("location permission finished / forced 2000ms");
-      }, 2000);
-    };
-
-    window.ForceFullscreenRecoveryCheck = function () {
-      console.log("[FullscreenRecovery] ForceFullscreenRecoveryCheck called");
-
-      fullscreenWanted = true;
-
-      forceShowRestoreOverlay("manual recovery check");
-      startFullscreenRecoveryWatch("manual recovery check");
-    };
-
-    window.TestFullscreenOverlay = function () {
-      console.log("[FullscreenRecovery] TestFullscreenOverlay called");
-      forceShowRestoreOverlay("manual browser console test");
-    };
-
-    function handleRestoreFullscreenTap(event) {
-      if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-
-      if (restoreRequestInProgress) return;
-
-      restoreRequestInProgress = true;
-      fullscreenWanted = true;
-
-      const activationDebug = getUserActivationDebug();
-
-      setDebugText("Restore tapped. " + activationDebug + ". Requesting fullscreen...");
-
-      console.log("[Restore] tapped");
-      console.log("[Restore] event.isTrusted:", event ? event.isTrusted : "no event");
-      console.log("[Restore] userActivation:", activationDebug);
-
-      /*
-        Important:
-        Do NOT hide the overlay here.
-        Only hide it after fullscreen success.
-      */
-      requestAppFullscreen("restore button").then(function (success) {
-        restoreRequestInProgress = false;
-
-        console.log("[Restore] fullscreen success:", success);
-        console.log("[Restore] fullscreenElement:", document.fullscreenElement);
-        console.log("[Restore] webkitFullscreenElement:", document.webkitFullscreenElement);
-
-        if (success) {
-          clearFullscreenCheckTimers();
-          setDebugText("Fullscreen restored.");
-          setRestoreOverlayVisible(false, "fullscreen restored");
-        } else {
-          setRestoreOverlayVisible(true, "Restore failed. Chrome stayed windowed.");
-          setDebugText("Restore failed. " + getUserActivationDebug());
-        }
-      });
-    }
-
-    restoreButton.addEventListener("pointerdown", handleRestoreFullscreenTap);
-
-    restoreButton.addEventListener("click", function (event) {
-      if (!restoreRequestInProgress) {
-        handleRestoreFullscreenTap(event);
-      }
-    });
-
-    playButton.onclick = function () {
+    let started = false;
+    playButton.onclick = async () => {
       if (started) return;
 
-      const isPortraitMobile =
-        window.innerHeight > window.innerWidth &&
-        window.innerWidth < 1024;
-
-      if (isPortraitMobile) {
-        alert("Please rotate to landscape first!");
-        return;
+      // Anti-jump: check orientation before starting
+      if (window.innerHeight > window.innerWidth && window.innerWidth < 1024) {
+          alert("Please rotate to Landscape first!");
+          return;
       }
 
       started = true;
-      fullscreenWanted = true;
-
       startOverlay.style.display = "none";
       loadingBar.style.display = "block";
-      progressBarFull.style.transform = "scaleX(0)";
-      setDebugText("Starting Unity loader...");
 
-      requestAppFullscreen("start button click");
+      // Request Fullscreen & Orientation Lock
+      if (container.requestFullscreen) { try { await container.requestFullscreen(); } catch (e) {} }
+      try { if (screen.orientation?.lock) { await screen.orientation.lock("landscape"); } } catch (e) {}
 
-      const buildUrl = "Build";
+      fillScreen();
 
-      /*
-        IMPORTANT:
-        This must match your Unity WebGL build files exactly.
-      */
-      const buildName = "ParnumaFullscreentest";
-
-      const loaderUrl = buildUrl + "/" + buildName + ".loader.js";
-
-      const config = {
-        dataUrl: buildUrl + "/" + buildName + ".data.unityweb",
-        frameworkUrl: buildUrl + "/" + buildName + ".framework.js.unityweb",
-        codeUrl: buildUrl + "/" + buildName + ".wasm.unityweb",
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/Prnumaa_TestRotateWarningOnAllmobileDevices.loader.js";
+      var config = {
+        dataUrl: buildUrl + "/Prnumaa_TestRotateWarningOnAllmobileDevices.data.unityweb",
+        frameworkUrl: buildUrl + "/Prnumaa_TestRotateWarningOnAllmobileDevices.framework.js.unityweb",
+        codeUrl: buildUrl + "/Prnumaa_TestRotateWarningOnAllmobileDevices.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "via",
         productName: "KuumAR",
         productVersion: "0.1",
         showBanner: unityShowBanner,
-        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2)
+        devicePixelRatio: Math.min(window.devicePixelRatio, 2),
       };
 
       const script = document.createElement("script");
       script.src = loaderUrl;
-
-      script.onload = function () {
-        setDebugText("Unity loader loaded. Creating instance...");
-
-        createUnityInstance(canvas, config, function (progress) {
-          const percent = Math.round(progress * 100);
-
-          progressBarFull.style.transform = "scaleX(" + progress + ")";
-
-          if (percent !== lastProgressPercent) {
-            lastProgressPercent = percent;
-            setDebugText("Loading: " + percent + "%");
-          }
-        })
-          .then(function () {
-            loadingBar.style.display = "none";
-
-            setTimeout(function () {
-              fillScreen();
-              triggerUnityResize();
-              startFullscreenRecoveryWatch("Unity loaded");
-            }, 500);
-          })
-          .catch(function (err) {
-            unityShowBanner(err, "error");
-          });
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = (progress * 100) + "%";
+        }).then(() => {
+          loadingBar.style.display = "none";
+          setTimeout(fillScreen, 500);
+        }).catch((err) => {
+          unityShowBanner(err, 'error');
+        });
       };
-
-      script.onerror = function () {
-        unityShowBanner("Could not load Unity loader script: " + loaderUrl, "error");
-      };
-
       document.body.appendChild(script);
     };
 
+    window.addEventListener("resize", fillScreen);
     fillScreen();
-  </script>
+    </script>
 </body>
 </html>
