@@ -202,6 +202,13 @@
       window.scrollTo(0, 0);
     }
 
+    
+function focusCanvas() {
+  if (canvas) {
+    canvas.focus();
+  }
+}
+
     let started = false;
     playButton.onclick = async () => {
       if (started) return;
@@ -217,17 +224,34 @@
       loadingBar.style.display = "block";
 
       // Request Fullscreen & Orientation Lock
-      if (container.requestFullscreen) { try { await container.requestFullscreen(); } catch (e) {} }
-      try { if (screen.orientation?.lock) { await screen.orientation.lock("landscape"); } } catch (e) {}
+try {
+  if (container.requestFullscreen) {
+    await container.requestFullscreen({ navigationUI: "hide" });
+  } else if (container.webkitRequestFullscreen) {
+    container.webkitRequestFullscreen();
+  } else if (container.msRequestFullscreen) {
+    container.msRequestFullscreen();
+  }
+} catch (e) {
+  console.warn("Initial fullscreen request failed:", e);
+}
+
+try {
+  if (screen.orientation?.lock) {
+    await screen.orientation.lock("landscape");
+  }
+} catch (e) {
+  console.warn("Orientation lock failed:", e);
+}
 
       fillScreen();
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/Parnuma_FullscreenBrowser.loader.js";
+      var loaderUrl = buildUrl + "/Parnumaa_FullscreenBrowserRetryTest.loader.js";
       var config = {
-        dataUrl: buildUrl + "/Parnuma_FullscreenBrowser.data.unityweb",
-        frameworkUrl: buildUrl + "/Parnuma_FullscreenBrowser.framework.js.unityweb",
-        codeUrl: buildUrl + "/Parnuma_FullscreenBrowser.wasm.unityweb",
+        dataUrl: buildUrl + "/Parnumaa_FullscreenBrowserRetryTest.data.unityweb",
+        frameworkUrl: buildUrl + "/Parnumaa_FullscreenBrowserRetryTest.framework.js.unityweb",
+        codeUrl: buildUrl + "/Parnumaa_FullscreenBrowserRetryTest.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "via",
         productName: "KuumAR",
@@ -240,43 +264,46 @@
       script.src = loaderUrl;
       script.onload = () => {
         createUnityInstance(canvas, config, (progress) => {
-            progressBarFull.style.width = (progress * 100) + "%";
-            }).then((unityInstance) => {
-            loadingBar.style.display = "none";
+  progressBarFull.style.width = (progress * 100) + "%";
+}).then((unityInstance) => {
+  loadingBar.style.display = "none";
 
-            // Make Unity instance available to WebGL JavaScript plugins
-            window.unityInstance = unityInstance;
+  // Make Unity instance available to WebGL JavaScript plugins
+  // Needed for window.unityInstance.SendMessage(...) TMP logs
+  window.unityInstance = unityInstance;
 
-            setTimeout(fillScreen, 500);
-            }).catch((err) => {
-            unityShowBanner(err, 'error');
-            });
+  focusCanvas();
+  setTimeout(fillScreen, 100);
+  setTimeout(fillScreen, 500);
+}).catch((err) => {
+  unityShowBanner(err, 'error');
+});
       };
       document.body.appendChild(script);
     };
 
     document.addEventListener("fullscreenchange", () => {
   console.log("Fullscreen changed:", document.fullscreenElement);
-  canvas.focus();
+  focusCanvas();
   setTimeout(fillScreen, 100);
 });
 
 document.addEventListener("webkitfullscreenchange", () => {
   console.log("WebKit fullscreen changed:", document.webkitFullscreenElement);
-  canvas.focus();
+  focusCanvas();
   setTimeout(fillScreen, 100);
 });
 
 window.addEventListener("focus", () => {
   console.log("Window focused again");
-  canvas.focus();
+  focusCanvas();
   setTimeout(fillScreen, 100);
 });
 
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     console.log("Page visible again");
-    canvas.focus();
+    focusCanvas();
     setTimeout(fillScreen, 100);
   }
 });
