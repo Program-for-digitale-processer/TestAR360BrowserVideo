@@ -130,6 +130,21 @@
                 transform: rotate(0deg);
             }
         }
+
+        #unity-container:fullscreen,
+#unity-container:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    background: black;
+}
+
+#unity-container:fullscreen #unity-canvas,
+#unity-container:-webkit-full-screen #unity-canvas {
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+}
     </style>
 </head>
 
@@ -195,12 +210,28 @@
       }
     }
 
-    function fillScreen() {
-      const vv = window.visualViewport;
-      container.style.height = (vv ? vv.height : window.innerHeight) + "px";
-      container.style.width = (vv ? vv.width : window.innerWidth) + "px";
-      window.scrollTo(0, 0);
-    }
+    function isFullscreenNow() {
+  return document.fullscreenElement ||
+         document.webkitFullscreenElement ||
+         document.msFullscreenElement;
+}
+
+function fillScreen() {
+  if (isFullscreenNow()) {
+    container.style.width = "100vw";
+    container.style.height = "100dvh";
+    canvas.style.width = "100vw";
+    canvas.style.height = "100dvh";
+  } else {
+    const vv = window.visualViewport;
+    container.style.height = (vv ? vv.height : window.innerHeight) + "px";
+    container.style.width = (vv ? vv.width : window.innerWidth) + "px";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+  }
+
+  window.scrollTo(0, 0);
+}
 
     
 function focusCanvas() {
@@ -247,11 +278,11 @@ try {
       fillScreen();
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/Parnumaa_Fullscreen_BrowserTwoTapsTest.loader.js";
+      var loaderUrl = buildUrl + "/Parnumaa_fullscrenupdatezise.loader.js";
       var config = {
-        dataUrl: buildUrl + "/Parnumaa_Fullscreen_BrowserTwoTapsTest.data.unityweb",
-        frameworkUrl: buildUrl + "/Parnumaa_Fullscreen_BrowserTwoTapsTest.framework.js.unityweb",
-        codeUrl: buildUrl + "/Parnumaa_Fullscreen_BrowserTwoTapsTest.wasm.unityweb",
+        dataUrl: buildUrl + "/Parnumaa_fullscrenupdatezise.data.unityweb",
+        frameworkUrl: buildUrl + "/Parnumaa_fullscrenupdatezise.framework.js.unityweb",
+        codeUrl: buildUrl + "/Parnumaa_fullscrenupdatezise.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "via",
         productName: "KuumAR",
@@ -286,18 +317,21 @@ try {
   console.log("Fullscreen changed:", document.fullscreenElement);
   focusCanvas();
   setTimeout(fillScreen, 100);
+  setTimeout(fillScreen, 500);
 });
 
 document.addEventListener("webkitfullscreenchange", () => {
   console.log("WebKit fullscreen changed:", document.webkitFullscreenElement);
   focusCanvas();
   setTimeout(fillScreen, 100);
+  setTimeout(fillScreen, 500);
 });
 
 window.addEventListener("focus", () => {
   console.log("Window focused again");
   focusCanvas();
   setTimeout(fillScreen, 100);
+  setTimeout(fillScreen, 500);
 });
 
 document.addEventListener("visibilitychange", () => {
@@ -305,6 +339,7 @@ document.addEventListener("visibilitychange", () => {
     console.log("Page visible again");
     focusCanvas();
     setTimeout(fillScreen, 100);
+    setTimeout(fillScreen, 500);
   }
 });
 
