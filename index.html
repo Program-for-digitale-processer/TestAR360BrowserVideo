@@ -1,258 +1,131 @@
 <!DOCTYPE html>
 <html lang="en-us">
-<head>
-    <meta charset="utf-8" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>KuumAR9 Test Overlay</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
-
-    <style>
-        /* 1. LOCK THE VIEWPORT */
-        html, body {
-            margin: 0;
-            padding: 0;
-            background: black;
-            width: 100%;
-            height: 100%;
-            height: 100dvh;
-            overflow: hidden;
-            position: fixed;
-            left: 0;
-            top: 0;
-            touch-action: none;
-            overscroll-behavior: none;
-        }
-
-        #unity-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            background: #000;
-            overflow: hidden;
-        }
-
-        #unity-canvas {
-            background: black;
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-
-        /* 2. THE START BUTTON OVERLAY */
-        #custom-start-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0,0,0,0.9);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        #btn-play {
-            padding: 20px 40px;
-            font-size: 24px;
-            color: white;
-            background: #2196F3;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-family: sans-serif;
-            font-weight: bold;
-        }
-
-        /* 3. LOADING BAR */
-        #unity-loading-bar {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-        }
-
-        #unity-progress-bar-empty {
-            width: 200px;
-            height: 10px;
-            background: #333;
-            margin-top: 10px;
-            border-radius: 5px;
-        }
-
-        #unity-progress-bar-full {
-            width: 0%;
-            height: 100%;
-            background: white;
-            border-radius: 5px;
-            transition: width 0.2s;
-        }
-
-        /* 4. ORIENTATION WARNING STYLE */
-        #orientation-warning {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: #000;
-            color: white;
-            z-index: 9999;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            font-family: sans-serif;
-        }
-
-        /* "any-pointer: coarse" means: If the device has a touchscreen anywhere, trigger this */
-        @media screen and (orientation: portrait) and (any-pointer: coarse) {
-            #orientation-warning {
-                display: flex;
-            }
-        }
-
-        .rotate-icon {
-            font-size: 60px;
-            margin-bottom: 20px;
-            display: inline-block;
-            animation: rotate-phone 2s ease-in-out infinite;
-        }
-
-        @keyframes rotate-phone {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            50% {
-                transform: rotate(-90deg);
-            }
-
-            100% {
-                transform: rotate(0deg);
-            }
-        }
-    </style>
-</head>
-
-<body>
-    <div id="orientation-warning">
-        <div class="rotate-icon">&#128241;</div>
-        <p style="font-weight: bold;">Please rotate your device</p>
-        <p style="opacity: 0.7; font-size: 0.9em;">Landscape mode is required for this experience.</p>
-
-    </div>
-
-    <div id="unity-container">
-        <canvas id="unity-canvas" tabindex="-1"></canvas>
-
-        <div id="custom-start-overlay">
-            <button id="btn-play">START EXPERIENCE</button>
-            <p style="color:white; margin-top:15px; font-family: sans-serif; opacity: 0.7; text-align:center; padding: 0 20px;">
-                Tap to begin. Make sure the device is in Landscape position.
-            </p>
-            <p style="color: white; text-align: center; opacity: 0.7; font-size: 0.9em; margin-top: 10px;">
-                If the screen doesn’t rotate, turn on rotation in Quick Settings
-
-                <svg xmlns="http://www.w3.org/2000/svg" height="1.2em" viewBox="0 0 24 24" width="1.2em" fill="currentColor" style="vertical-align: -0.2em; margin: 0 2px;">
-                    <path d="M0 0h24v24H0V0z" fill="none" />
-                    <path d="M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 18.29 0 12 0l-.66.03 3.81 3.81 1.33-1.32zm-6.25-.77c-.59-.59-1.54-.59-2.12 0L1.75 8.11c-.59.59-.59 1.54 0 2.12l12.02 12.02c.59.59 1.54.59 2.12 0l6.36-6.36c.59-.59.59-1.54 0-2.12L10.23 1.75zm4.6 19.44L2.81 9.17l6.36-6.36 12.02 12.02-6.36 6.36zm-7.31.29C4.25 19.94 1.91 16.76 1.55 13H.05C.56 19.16 5.71 24 12 24l.66-.03-3.81-3.81-1.33 1.32z" />
-                </svg>
-
-                or Control Center
-
-                <svg xmlns="http://www.w3.org/2000/svg" height="1.45em" viewBox="0 0 24 24" width="1.45em" fill="currentColor" style="vertical-align: -0.32em; margin: 0 0px 0 -2px;">
-                    <path d="M12 4c4.41 0 8 3.59 8 8s-3.59 8-8 8c-1.37 0-2.67-.35-3.82-.96l1.24-1.8A5.952 5.952 0 0012 18c3.31 0 6-2.69 6-6s-2.69-6-6-6v3l-4-4 4-4v3zm-2.5 5.5v-1c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v1c.83 0 1.5.67 1.5 1.5v4c0 .83-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5v-4c0-.83.67-1.5 1.5-1.5zm1 0h3v-1c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v1z" />
-                </svg>
-            </p>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity WebGL Player | KuumAR</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  </head>
+  <body>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
         </div>
-
-        <div id="unity-loading-bar">
-            <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
-        </div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-footer">
+        <div id="unity-webgl-logo"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">KuumAR</div>
+      </div>
     </div>
-
     <script>
-    const container = document.querySelector("#unity-container");
-    const canvas = document.querySelector("#unity-canvas");
-    const loadingBar = document.querySelector("#unity-loading-bar");
-    const progressBarFull = document.querySelector("#unity-progress-bar-full");
-    const startOverlay = document.querySelector("#custom-start-overlay");
-    const playButton = document.querySelector("#btn-play");
 
-    function unityShowBanner(msg, type) {
-      if (type !== 'error') return;
-      if (!document.getElementById('unity-crash-overlay')) {
-        var overlay = document.createElement('div');
-        overlay.id = 'unity-crash-overlay';
-        Object.assign(overlay.style, {
-          position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
-          backgroundColor: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column',
-          justifyContent: 'center', alignItems: 'center', zIndex: '9999',
-          color: 'white', fontFamily: 'sans-serif', textAlign: 'center', padding: '20px'
-        });
-        overlay.innerHTML = `<div><h2 style="color:#ff4444">Error</h2><p>${msg}</p>
-        <button onclick="location.reload()" style="padding:10px 20px; background:#2196F3; border:none; color:white; border-radius:5px;">REFRESH</button></div>`;
-        document.body.appendChild(overlay);
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var fullscreenButton = document.querySelector("#unity-fullscreen-button");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
       }
-    }
-
-    function fillScreen() {
-      const vv = window.visualViewport;
-      container.style.height = (vv ? vv.height : window.innerHeight) + "px";
-      container.style.width = (vv ? vv.width : window.innerWidth) + "px";
-      window.scrollTo(0, 0);
-    }
-
-    let started = false;
-    playButton.onclick = async () => {
-      if (started) return;
-
-      // Anti-jump: check orientation before starting
-      if (window.innerHeight > window.innerWidth && window.innerWidth < 1024) {
-          alert("Please rotate to Landscape first!");
-          return;
-      }
-
-      started = true;
-      startOverlay.style.display = "none";
-      loadingBar.style.display = "block";
-
-      // Request Fullscreen & Orientation Lock
-      if (container.requestFullscreen) { try { await container.requestFullscreen(); } catch (e) {} }
-      try { if (screen.orientation?.lock) { await screen.orientation.lock("landscape"); } } catch (e) {}
-
-      fillScreen();
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/Prnumaa_TestRotateWarningOnAllmobileDevices.loader.js";
+      var loaderUrl = buildUrl + "/Parnumaa_DefaultUnityTemplate.loader.js";
       var config = {
-        dataUrl: buildUrl + "/Prnumaa_TestRotateWarningOnAllmobileDevices.data.unityweb",
-        frameworkUrl: buildUrl + "/Prnumaa_TestRotateWarningOnAllmobileDevices.framework.js.unityweb",
-        codeUrl: buildUrl + "/Prnumaa_TestRotateWarningOnAllmobileDevices.wasm.unityweb",
+        dataUrl: buildUrl + "/Parnumaa_DefaultUnityTemplate.data.unityweb",
+        frameworkUrl: buildUrl + "/Parnumaa_DefaultUnityTemplate.framework.js.unityweb",
+        codeUrl: buildUrl + "/Parnumaa_DefaultUnityTemplate.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "via",
         productName: "KuumAR",
         productVersion: "0.1",
         showBanner: unityShowBanner,
-        devicePixelRatio: Math.min(window.devicePixelRatio, 2),
       };
 
-      const script = document.createElement("script");
+      // By default, Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      // If you would like all file writes inside Unity Application.persistentDataPath
+      // directory to automatically persist so that the contents are remembered when
+      // the user revisits the site the next time, uncomment the following line:
+      // config.autoSyncPersistentDataPath = true;
+      // This autosyncing is currently not the default behavior to avoid regressing
+      // existing user projects that might rely on the earlier manual
+      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
+      // expected to change.
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        container.className = "unity-mobile";
+        canvas.className = "unity-mobile";
+
+        // To lower canvas resolution on mobile devices to gain some
+        // performance, uncomment the following line:
+        // config.devicePixelRatio = 1;
+
+
+      } else {
+        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+
+        canvas.style.width = "960px";
+        canvas.style.height = "600px";
+      }
+
+      loadingBar.style.display = "block";
+
+      var script = document.createElement("script");
       script.src = loaderUrl;
       script.onload = () => {
         createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = (progress * 100) + "%";
-        }).then(() => {
-          loadingBar.style.display = "none";
-          setTimeout(fillScreen, 500);
-        }).catch((err) => {
-          unityShowBanner(err, 'error');
-        });
-      };
-      document.body.appendChild(script);
-    };
+          progressBarFull.style.width = 100 * progress + "%";
+              }).then((unityInstance) => {
+                loadingBar.style.display = "none";
+                fullscreenButton.onclick = () => {
+                  unityInstance.SetFullscreen(1);
+                };
+              }).catch((message) => {
+                alert(message);
+              });
+            };
 
-    window.addEventListener("resize", fillScreen);
-    fillScreen();
+      document.body.appendChild(script);
+
     </script>
-</body>
+  </body>
 </html>
