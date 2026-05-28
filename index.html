@@ -223,11 +223,11 @@
       fillScreen();
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/Parnumaa_unityfullscreen.loader.js";
+      var loaderUrl = buildUrl + "/Parnuma_FullscreenBrowser.loader.js";
       var config = {
-        dataUrl: buildUrl + "/Parnumaa_unityfullscreen.data.unityweb",
-        frameworkUrl: buildUrl + "/Parnumaa_unityfullscreen.framework.js.unityweb",
-        codeUrl: buildUrl + "/Parnumaa_unityfullscreen.wasm.unityweb",
+        dataUrl: buildUrl + "/Parnuma_FullscreenBrowser.data.unityweb",
+        frameworkUrl: buildUrl + "/Parnuma_FullscreenBrowser.framework.js.unityweb",
+        codeUrl: buildUrl + "/Parnuma_FullscreenBrowser.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "via",
         productName: "KuumAR",
@@ -240,24 +240,49 @@
       script.src = loaderUrl;
       script.onload = () => {
         createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = (progress * 100) + "%";
-        }).then((unityInstance) => {
-          loadingBar.style.display = "none";
+            progressBarFull.style.width = (progress * 100) + "%";
+            }).then((unityInstance) => {
+            loadingBar.style.display = "none";
 
-          
-        // Make Unity instance available to WebGL JavaScript plugins
-        window.unityInstance = unityInstance;
+            // Make Unity instance available to WebGL JavaScript plugins
+            window.unityInstance = unityInstance;
 
-          setTimeout(fillScreen, 500);
-        }).catch((err) => {
-          unityShowBanner(err, 'error');
-        });
+            setTimeout(fillScreen, 500);
+            }).catch((err) => {
+            unityShowBanner(err, 'error');
+            });
       };
       document.body.appendChild(script);
     };
 
-    window.addEventListener("resize", fillScreen);
-    fillScreen();
+    document.addEventListener("fullscreenchange", () => {
+  console.log("Fullscreen changed:", document.fullscreenElement);
+  canvas.focus();
+  setTimeout(fillScreen, 100);
+});
+
+document.addEventListener("webkitfullscreenchange", () => {
+  console.log("WebKit fullscreen changed:", document.webkitFullscreenElement);
+  canvas.focus();
+  setTimeout(fillScreen, 100);
+});
+
+window.addEventListener("focus", () => {
+  console.log("Window focused again");
+  canvas.focus();
+  setTimeout(fillScreen, 100);
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    console.log("Page visible again");
+    canvas.focus();
+    setTimeout(fillScreen, 100);
+  }
+});
+
+window.addEventListener("resize", fillScreen);
+fillScreen();
     </script>
 </body>
 </html>
