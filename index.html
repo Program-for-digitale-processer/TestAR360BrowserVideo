@@ -257,47 +257,14 @@ function fillScreen() {
   window.scrollTo(0, 0);
 }
 
-let started = false;
-playButton.onclick = async () => {
-  if (started) return;
-
-  if (window.innerHeight > window.innerWidth && window.innerWidth < 1024) {
-      alert("Please rotate to Landscape first!");
-      return;
-  }
-
-  started = true;
-
-  // 1. THE CURE: Request Geolocation access explicitly in native HTML FIRST.
-  // This handles the GPS security prompt while the user is still on the standard web layout.
-  try {
-      progressText.textContent = "Awaiting Location Permission...";
-      loadingBar.style.display = "block";
-      
-      await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(
-              (position) => {
-                  console.log("Location permission granted natively.");
-                  resolve(position);
-              },
-              (err) => {
-                  console.warn("Location prompt dismissed or denied natively:", err);
-                  // Resolve anyway so the game can still load (Unity can handle its own errors)
-                  resolve(null); 
-              },
-              { enableHighAccuracy: false, timeout: 5000, maximumAge: Infinity }
-          );
-      });
-  } catch (e) {
-      console.warn("Geolocation API unavailable:", e);
-  }
-
-  // 2. Clear out the overlay panels now that permissions are completely settled
+// Separated function to handle the build compilation sequence directly
+async function launchUnityInstance() {
+  // Clear out the overlay panels cleanly
   startOverlay.style.display = "none";
   progressBarFull.style.width = "0%";
   progressText.textContent = "0%";
 
-  // 3. Request true fullscreen cleanly without a trailing prompt tracking conflict
+  // Trigger fullscreen transition
   await forceTrueFullscreen();
 
   var buildUrl = "Build";
@@ -331,6 +298,39 @@ playButton.onclick = async () => {
     });
   };
   document.body.appendChild(script);
+}
+
+let started = false;
+playButton.onclick = () => {
+  if (started) return;
+
+  if (window.innerHeight > window.innerWidth && window.innerWidth < 1024) {
+      alert("Please rotate to Landscape first!");
+      return;
+  }
+
+  started = true;
+  progressText.textContent = "Awaiting Location Permission...";
+  loadingBar.style.display = "block";
+
+  // Check if Geolocation exists on this device
+  if (navigator.geolocation) {
+      // Direct native execution chain. No nested async promises to lock the main thread engine.
+      navigator.geolocation.getCurrentPosition(
+          function(position) {
+              console.log("Location allowed.");
+              launchUnityInstance();
+          },
+          function(error) {
+              console.warn("Location denied or timed out:", error);
+              launchUnityInstance(); // Launch anyway so Unity can run
+          },
+          { enableHighAccuracy: false, timeout: 6000, maximumAge: Infinity }
+      );
+  } else {
+      console.warn("Geolocation API missing on device.");
+      launchUnityInstance();
+  }
 };
 
 window.addEventListener("resize", fillScreen);
