@@ -195,132 +195,137 @@
     </div>
 
     <script>
-    const container = document.querySelector("#unity-container");
-    const canvas = document.querySelector("#unity-canvas");
-    const loadingBar = document.querySelector("#unity-loading-bar");
-    const progressBarFull = document.querySelector("#unity-progress-bar-full");
-    const progressText = document.querySelector("#unity-progress-text");
-    const startOverlay = document.querySelector("#custom-start-overlay");
-    const playButton = document.querySelector("#btn-play");
-    
-    // Grab the new repair button
-    const repairButton = document.querySelector("#fullscreen-repair-btn");
+const container = document.querySelector("#unity-container");
+const canvas = document.querySelector("#unity-canvas");
+const loadingBar = document.querySelector("#unity-loading-bar");
+const progressBarFull = document.querySelector("#unity-progress-bar-full");
+const progressText = document.querySelector("#unity-progress-text");
+const startOverlay = document.querySelector("#custom-start-overlay");
+const playButton = document.querySelector("#btn-play");
+const repairButton = document.querySelector("#fullscreen-repair-btn");
 
-    // Instantly request fullscreen on pointer down
-    repairButton.addEventListener("pointerdown", async (e) => {
-        e.preventDefault(); // Stop any delays
-        console.log("Native fullscreen button pressed.");
-        
-        if (container.requestFullscreen) {
-            try {
-                await container.requestFullscreen();
-                console.log("Entered standard fullscreen.");
-            } catch (err) {
-                console.error("Standard fullscreen failed:", err);
-            }
-        } else if (container.webkitRequestFullscreen) {
-            container.webkitRequestFullscreen();
-            console.log("Entered webkit fullscreen.");
-        }
-        
-        // Ensure viewport resizes properly after re-entering
-        setTimeout(fillScreen, 500); 
-    });
-
-    function unityShowBanner(msg, type) {
-      if (type !== 'error') return;
-      if (!document.getElementById('unity-crash-overlay')) {
-        var overlay = document.createElement('div');
-        overlay.id = 'unity-crash-overlay';
-        Object.assign(overlay.style, {
-          position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
-          backgroundColor: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column',
-          justifyContent: 'center', alignItems: 'center', zIndex: '9999',
-          color: 'white', fontFamily: 'sans-serif', textAlign: 'center', padding: '20px'
-        });
-        overlay.innerHTML = `<div><h2 style="color:#ff4444">Error</h2><p>${msg}</p>
-        <button onclick="location.reload()" style="padding:10px 20px; background:#2196F3; border:none; color:white; border-radius:5px;">REFRESH</button></div>`;
-        document.body.appendChild(overlay);
-      }
-    }
-
-    function fillScreen() {
-      const vv = window.visualViewport;
-      container.style.height = (vv ? vv.height : window.innerHeight) + "px";
-      container.style.width = (vv ? vv.width : window.innerWidth) + "px";
-      window.scrollTo(0, 0);
-    }
-
-    let started = false;
-    playButton.onclick = async () => {
-      if (started) return;
-
-      // Anti-jump: check orientation before starting
-      if (window.innerHeight > window.innerWidth && window.innerWidth < 1024) {
-          alert("Please rotate to Landscape first!");
-          return;
-      }
-
-      started = true;
-      startOverlay.style.display = "none";
-      loadingBar.style.display = "block";
-
-      progressBarFull.style.width = "0%";
-      progressText.textContent = "0%";
-
-      // Request Fullscreen & Orientation Lock
-      if (container.requestFullscreen) {
+// Clean, standard Immersive Fullscreen Request
+async function forceTrueFullscreen() {
+    if (container.requestFullscreen) {
         try {
-          await container.requestFullscreen();
-        } catch (e) {}
-      }
-
-      try {
-        if (screen.orientation?.lock) {
-          await screen.orientation.lock("landscape");
+            await container.requestFullscreen();
+        } catch (err) {
+            if (canvas.requestFullscreen) await canvas.requestFullscreen();
         }
-      } catch (e) {}
+    } else if (container.webkitRequestFullscreen) {
+        try { container.webkitRequestFullscreen(); } catch(e){ canvas.webkitRequestFullscreen(); }
+    }
 
-      fillScreen();
+    // Force orientation lock
+    try {
+        if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock("landscape");
+        }
+    } catch (e) {}
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/Parnumaa_fullscrenupdatezise.loader.js";
-      var config = {
-        dataUrl: buildUrl + "/Parnumaa_fullscrenupdatezise.data.unityweb",
-        frameworkUrl: buildUrl + "/Parnumaa_fullscrenupdatezise.framework.js.unityweb",
-        codeUrl: buildUrl + "/Parnumaa_fullscrenupdatezise.wasm.unityweb",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "via",
-        productName: "KuumAR",
-        productVersion: "0.1",
-        showBanner: unityShowBanner,
-        devicePixelRatio: Math.min(window.devicePixelRatio, 2),
-      };
-
-      const script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          const percent = Math.round(progress * 100);
-
-          progressBarFull.style.width = percent + "%";
-          progressText.textContent = percent + "%";
-        }).then(() => {
-          progressBarFull.style.width = "100%";
-          progressText.textContent = "100%";
-
-          loadingBar.style.display = "none";
-          setTimeout(fillScreen, 500);
-        }).catch((err) => {
-          unityShowBanner(err, 'error');
-        });
-      };
-      document.body.appendChild(script);
-    };
-
-    window.addEventListener("resize", fillScreen);
     fillScreen();
+    window.scrollTo(0, 0);
+}
 
-    </script>
+// The native repair button handles a clean layout correction
+repairButton.addEventListener("pointerdown", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await forceTrueFullscreen();
+});
+
+function unityShowBanner(msg, type) {
+  if (type !== 'error') return;
+  if (!document.getElementById('unity-crash-overlay')) {
+    var overlay = document.createElement('div');
+    overlay.id = 'unity-crash-overlay';
+    Object.assign(overlay.style, {
+      position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+      backgroundColor: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column',
+      justifyContent: 'center', alignItems: 'center', zIndex: '9999',
+      color: 'white', fontFamily: 'sans-serif', textAlign: 'center', padding: '20px'
+    });
+    overlay.innerHTML = `<div><h2 style="color:#ff4444">Error</h2><p>${msg}</p>
+    <button onclick="location.reload()" style="padding:10px 20px; background:#2196F3; border:none; color:white; border-radius:5px;">REFRESH</button></div>`;
+    document.body.appendChild(overlay);
+  }
+}
+
+function fillScreen() {
+  container.style.height = window.innerHeight + "px";
+  container.style.width = window.innerWidth + "px";
+  window.scrollTo(0, 0);
+}
+
+let started = false;
+playButton.onclick = async () => {
+  if (started) return;
+
+  if (window.innerHeight > window.innerWidth && window.innerWidth < 1024) {
+      alert("Please rotate to Landscape first!");
+      return;
+  }
+
+  started = true;
+
+  // 1. THE CURE: Request camera access explicitly in native HTML FIRST.
+  // This handles the security prompt while the user is still looking at the overlay menu,
+  // before the browser tries to enter fullscreen mode.
+  try {
+      progressText.textContent = "Awaiting Camera Permission...";
+      loadingBar.style.display = "block";
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      
+      // Stop the stream immediately; we only wanted to clear the permission dialog
+      stream.getTracks().forEach(track => track.stop()); 
+  } catch (permissionError) {
+      console.warn("Camera permission denied or unavailable natively:", permissionError);
+  }
+
+  // 2. Clear out the overlay panels now that permissions are completely settled
+  startOverlay.style.display = "none";
+  progressBarFull.style.width = "0%";
+  progressText.textContent = "0%";
+
+  // 3. Request true fullscreen cleanly without a trailing prompt tracking conflict
+  await forceTrueFullscreen();
+
+  var buildUrl = "Build";
+  var loaderUrl = buildUrl + "/Parnumaa_NoDebugText.data.loader.js";
+  var config = {
+    dataUrl: buildUrl + "/Parnumaa_NoDebugText.data.data.unityweb",
+    frameworkUrl: buildUrl + "/Parnumaa_NoDebugText.data.framework.js.unityweb",
+    codeUrl: buildUrl + "/Parnumaa_NoDebugText.data.wasm.unityweb",
+    streamingAssetsUrl: "StreamingAssets",
+    companyName: "via",
+    productName: "KuumAR",
+    productVersion: "0.1",
+    showBanner: unityShowBanner,
+    devicePixelRatio: Math.min(window.devicePixelRatio, 2),
+  };
+
+  const script = document.createElement("script");
+  script.src = loaderUrl;
+  script.onload = () => {
+    createUnityInstance(canvas, config, (progress) => {
+      const percent = Math.round(progress * 100);
+      progressBarFull.style.width = percent + "%";
+      progressText.textContent = percent + "%";
+    }).then(() => {
+      progressBarFull.style.width = "100%";
+      progressText.textContent = "100%";
+      loadingBar.style.display = "none";
+      setTimeout(fillScreen, 500);
+    }).catch((err) => {
+      unityShowBanner(err, 'error');
+    });
+  };
+  document.body.appendChild(script);
+};
+
+window.addEventListener("resize", fillScreen);
+fillScreen();
+</script>
 </body>
 </html>
