@@ -7,43 +7,17 @@
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
 
+    
 <style>
-    #unity-container {
-        position: relative;
-    }
-
     #unity-fullscreen-button {
         position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
         z-index: 9999;
-    width: 38px;
-    height: 38px;
-    cursor: pointer;
 
+        cursor: pointer;
     }
-
-    #unity-container:fullscreen {
-        width: 100vw;
-        height: 100vh;
-        background: black;
-    }
-
-    #unity-container:fullscreen #unity-canvas {
-        width: 100vw !important;
-        height: 100vh !important;
-    }
-
-    #unity-container:fullscreen #unity-fullscreen-button {
-        display: block;
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 99999;
-    }
-</style>
 
 </style>
 </head>
@@ -141,12 +115,8 @@
             }).then((unityInstance) => {
                 loadingBar.style.display = "none";
                 fullscreenButton.onclick = () => {
-    if (!document.fullscreenElement) {
-        container.requestFullscreen();
-    } else {
-        document.exitFullscreen();
-    }
-};
+                    unityInstance.SetFullscreen(1);
+                };
             }).catch((message) => {
                 alert(message);
             });
