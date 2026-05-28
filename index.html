@@ -194,7 +194,7 @@
         </div>
     </div>
 
-    <script>
+   <script>
 const container = document.querySelector("#unity-container");
 const canvas = document.querySelector("#unity-canvas");
 const loadingBar = document.querySelector("#unity-loading-bar");
@@ -268,19 +268,28 @@ playButton.onclick = async () => {
 
   started = true;
 
-  // 1. THE CURE: Request camera access explicitly in native HTML FIRST.
-  // This handles the security prompt while the user is still looking at the overlay menu,
-  // before the browser tries to enter fullscreen mode.
+  // 1. THE CURE: Request Geolocation access explicitly in native HTML FIRST.
+  // This handles the GPS security prompt while the user is still on the standard web layout.
   try {
-      progressText.textContent = "Awaiting Camera Permission...";
+      progressText.textContent = "Awaiting Location Permission...";
       loadingBar.style.display = "block";
       
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      
-      // Stop the stream immediately; we only wanted to clear the permission dialog
-      stream.getTracks().forEach(track => track.stop()); 
-  } catch (permissionError) {
-      console.warn("Camera permission denied or unavailable natively:", permissionError);
+      await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+              (position) => {
+                  console.log("Location permission granted natively.");
+                  resolve(position);
+              },
+              (err) => {
+                  console.warn("Location prompt dismissed or denied natively:", err);
+                  // Resolve anyway so the game can still load (Unity can handle its own errors)
+                  resolve(null); 
+              },
+              { enableHighAccuracy: false, timeout: 5000, maximumAge: Infinity }
+          );
+      });
+  } catch (e) {
+      console.warn("Geolocation API unavailable:", e);
   }
 
   // 2. Clear out the overlay panels now that permissions are completely settled
