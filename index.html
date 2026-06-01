@@ -162,13 +162,16 @@
             font-family: sans-serif;
         }
 
+        #orientation-warning p {
+            margin: 5px 0; /* top/bottom spacing */
+        }
+
         /* Show ONLY when:
            - portrait mode
            - touchscreen device */
-        @media screen and (orientation: portrait) and (any-pointer: coarse) {
-            #orientation-warning {
-                display: flex;
-            }
+         @media screen and (orientation: portrait) and (any-pointer: coarse) {
+        #orientation-warning {
+            display: flex;
         }
 
         /* Rotating phone icon */
@@ -228,12 +231,12 @@
         <!-- Instruction text -->
         <p style="font-weight: bold;">Please rotate your device</p>
 
-        <p style="opacity: 0.8; font-size: 0.9em;">
+        <p style="opacity: 0.85; font-size: 0.9em; margin-top: 15px; ">
             Landscape view is required for this experience.
         </p>
 
         <!-- Help text with icons -->
-        <p style="color: white; text-align: center; opacity: 0.8; font-size: 0.9em; margin-top: 10px;">
+        <p style="color: white; text-align: center; opacity: 0.85; font-size: 0.9em; ">
             If the screen doesn’t rotate, turn on rotation in Quick Settings
 
             <!-- SVG rotation icon that should match the one used on android  (visual hint for rotation/settings) -->
@@ -262,7 +265,7 @@
         <div id="custom-start-overlay">
             <button id="btn-play">START EXPERIENCE</button>
 
-            <p style="color:white; margin-top:15px; font-family: sans-serif; opacity: 0.7; text-align:center; padding: 0 20px;">
+            <p style="color:white; margin-top:15px; font-family: sans-serif; opacity: 0.85; text-align:center; padding: 0 20px;">
                 Tap the button to begin.
             </p>
         </div>
@@ -432,7 +435,7 @@
           var loaderUrl = buildUrl + "/b23dd96997961653e2825455633aac82.loader.js";
 
           var config = {
-            dataUrl: buildUrl + "/6f28037d938e86f024b00237d07607a4.data.unityweb",
+            dataUrl: buildUrl + "/d9acfeb42754de49ae0209e74e14a132.data.unityweb",
             frameworkUrl: buildUrl + "/538409f0878278bc88c76a7d039b030e.framework.js.unityweb",
             codeUrl: buildUrl + "/ae44838e65af4a07539f825f152ce2d4.wasm.unityweb",
 
@@ -452,63 +455,64 @@
             const script = document.createElement("script");
             script.src = loaderUrl;
 
-            let displayedPercent = 0;   // what user sees
-            let targetPercent = 0;      // Unity progress
-
             script.onload = () => {
 
-                const animationLoop = setInterval(() => {
+                let targetPercent = 0;
+                let displayedPercent = 0;
+
+                /* Smooth animation loop */
+                const progressLoop = setInterval(() => {
                     if (displayedPercent < targetPercent) {
                         displayedPercent++;
-                    }
-                    else if (displayedPercent < 95) {
+                    } else if (displayedPercent < 95) {
                         displayedPercent += 0.2; // slow creep
                     }
 
                     progressText.textContent = Math.floor(displayedPercent) + "%";
                     progressBarFull.style.width = displayedPercent + "%";
 
-                }, 33);
+                }, 15);
+
 
                 createUnityInstance(canvas, config, (progress) => {
-             /* Save Unity progress but cap at 90% Because the last 10% is usually spent on a pause for initialization after loading finishes, 
-                and we want to show a smooth progress to 100% insted of jumping to 100   */
-                    targetPercent = Math.min(Math.round(progress * 100), 90);
-                    // Update bar directly
-                    progressBarFull.style.width = targetPercent + "%";
+
+                    // Cap at 90%, jump to 100 when download is done
+                    if (progress >= 1) {
+                        targetPercent = 100;
+                    } else {
+                        targetPercent = Math.min(Math.round(progress * 100), 90);
+                    }
+
                 }).then((unityInstance) => {
-                    // Smooth finish to 100%
+
+                    // Smooth finish 95 → 100
                     const finishInterval = setInterval(() => {
+
                         if (displayedPercent < 100) {
                             displayedPercent++;
                             progressBarFull.style.width = displayedPercent + "%";
                             progressText.textContent = displayedPercent + "%";
                         } else {
                             clearInterval(finishInterval);
-                            clearInterval(animationLoop);
+                            clearInterval(progressLoop);
 
-                            // Give user time to see 100%
-                            setTimeout(() => {
-                                loadingBar.style.display = "none";
-                            }, 200);
+                            // ✅ Instantly hide (no fading)
+                            loadingBar.style.display = "none";
                         }
+
                     }, 10);
 
-                    /* Expose Unity instance globally for JS plugins */
                     window.unityInstance = unityInstance;
 
-                    focusCanvas();
-
-                    /* Fix layout after Unity initialization */
-                    setTimeout(fillScreen, 100);
                     setTimeout(fillScreen, 500);
 
                 }).catch((err) => {
+                    clearInterval(progressLoop);
                     unityShowBanner(err, 'error');
                 });
             };
 
-          document.body.appendChild(script);
+            document.body.appendChild(script);
         };
 
         /* Handle fullscreen changes */
