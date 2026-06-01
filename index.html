@@ -163,7 +163,7 @@
         }
 
         #orientation-warning p {
-            margin: 5px 0; /* top/bottom spacing */
+            margin: 2px 0; /* top/bottom spacing */
         }
 
         /* Show ONLY when:
@@ -435,7 +435,7 @@
           var loaderUrl = buildUrl + "/b23dd96997961653e2825455633aac82.loader.js";
 
           var config = {
-            dataUrl: buildUrl + "/c5c3fc8e80647180c8e056e0c1461c09.data.unityweb",
+            dataUrl: buildUrl + "/ed1996368bae436315922cba6c3cceaf.data.unityweb",
             frameworkUrl: buildUrl + "/538409f0878278bc88c76a7d039b030e.framework.js.unityweb",
             codeUrl: buildUrl + "/ae44838e65af4a07539f825f152ce2d4.wasm.unityweb",
 
@@ -461,11 +461,17 @@
                 let displayedPercent = 0;
 
                 /* Smooth animation loop */
+
                 const progressLoop = setInterval(() => {
+
+                    // Move quickly toward real progress
                     if (displayedPercent < targetPercent) {
-                        displayedPercent++;
-                    } else if (displayedPercent < 90) {
-                        displayedPercent += 0.2; // slow creep
+                        displayedPercent += 0.8;
+                    }
+
+                    // If real progress stalls, keep creeping slowly
+                    else if (displayedPercent < 95) {
+                        displayedPercent += 0.15;
                     }
 
                     progressText.textContent = Math.floor(displayedPercent) + "%";
@@ -473,15 +479,9 @@
 
                 }, 15);
 
-
                 createUnityInstance(canvas, config, (progress) => {
-
                     /* Cap at 80%, jump to 100 when download is done*/
-                    if (progress >= 1) {
-                        targetPercent = 100;
-                    } else {
-                        targetPercent = Math.min(Math.round(progress * 100), 80);
-                    }
+                    targetPercent = Math.min(Math.round(progress * 100), 80);
 
                 }).then((unityInstance) => {
                      /* Smooth finish 90 → 100 */
