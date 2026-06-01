@@ -231,7 +231,7 @@
         <!-- Instruction text -->
         <p style="font-weight: bold;">Please rotate your device</p>
 
-        <p style="opacity: 0.85; font-size: 0.9em; margin-top: 15px; ">
+        <p style="opacity: 0.85; font-size: 0.9em; margin-top: 10px; ">
             Landscape view is required for this experience.
         </p>
 
@@ -265,7 +265,7 @@
         <div id="custom-start-overlay">
             <button id="btn-play">START EXPERIENCE</button>
 
-            <p style="color:white; margin-top:15px; font-family: sans-serif; opacity: 0.85; text-align:center; padding: 0 20px;">
+            <p style="color:white; margin-top:12px; font-family: sans-serif; opacity: 0.85; text-align:center; padding: 0 20px;">
                 Tap the button to begin.
             </p>
         </div>
@@ -435,7 +435,7 @@
           var loaderUrl = buildUrl + "/b23dd96997961653e2825455633aac82.loader.js";
 
           var config = {
-            dataUrl: buildUrl + "/d9acfeb42754de49ae0209e74e14a132.data.unityweb",
+            dataUrl: buildUrl + "/c5c3fc8e80647180c8e056e0c1461c09.data.unityweb",
             frameworkUrl: buildUrl + "/538409f0878278bc88c76a7d039b030e.framework.js.unityweb",
             codeUrl: buildUrl + "/ae44838e65af4a07539f825f152ce2d4.wasm.unityweb",
 
@@ -464,7 +464,7 @@
                 const progressLoop = setInterval(() => {
                     if (displayedPercent < targetPercent) {
                         displayedPercent++;
-                    } else if (displayedPercent < 95) {
+                    } else if (displayedPercent < 90) {
                         displayedPercent += 0.2; // slow creep
                     }
 
@@ -476,16 +476,15 @@
 
                 createUnityInstance(canvas, config, (progress) => {
 
-                    // Cap at 90%, jump to 100 when download is done
+                    /* Cap at 80%, jump to 100 when download is done*/
                     if (progress >= 1) {
                         targetPercent = 100;
                     } else {
-                        targetPercent = Math.min(Math.round(progress * 100), 90);
+                        targetPercent = Math.min(Math.round(progress * 100), 80);
                     }
 
                 }).then((unityInstance) => {
-
-                    // Smooth finish 95 → 100
+                     /* Smooth finish 90 → 100 */
                     const finishInterval = setInterval(() => {
 
                         if (displayedPercent < 100) {
@@ -495,11 +494,8 @@
                         } else {
                             clearInterval(finishInterval);
                             clearInterval(progressLoop);
-
-                            // ✅ Instantly hide (no fading)
                             loadingBar.style.display = "none";
                         }
-
                     }, 10);
 
                     window.unityInstance = unityInstance;
