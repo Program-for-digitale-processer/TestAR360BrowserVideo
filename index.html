@@ -9,7 +9,7 @@
 
     <!-- Unity replaces this at build time -->
     <!-- Example: "KuumAR" -->
-    <title>KuumAR</title>
+    <title>{{{ PRODUCT_NAME }}}</title>
 
     <!-- Viewport setup:
          - disables zoom
@@ -282,67 +282,67 @@
         </div>
 
         <script>
-            /* =========================================================
-               CACHE IMPORTANT ELEMENTS
-               Cache DOM elements for performance
-               =========================================================
-                  */
-            const container = document.querySelector("#unity-container");
-            const canvas = document.querySelector("#unity-canvas");
-            const loadingBar = document.querySelector("#unity-loading-bar");
-            const progressBarFull = document.querySelector("#unity-progress-bar-full");
-            const progressText = document.querySelector("#unity-progress-text");
-            const startOverlay = document.querySelector("#custom-start-overlay");
-            const playButton = document.querySelector("#btn-play");
+        /* =========================================================
+           CACHE IMPORTANT ELEMENTS
+           Cache DOM elements for performance
+           =========================================================
+              */
+        const container = document.querySelector("#unity-container");
+        const canvas = document.querySelector("#unity-canvas");
+        const loadingBar = document.querySelector("#unity-loading-bar");
+        const progressBarFull = document.querySelector("#unity-progress-bar-full");
+        const progressText = document.querySelector("#unity-progress-text");
+        const startOverlay = document.querySelector("#custom-start-overlay");
+        const playButton = document.querySelector("#btn-play");
 
-            /* =========================================================
-               UNITY ERROR HANDLER
-               Shows fullscreen error if something crashes
-            */
-            function unityShowBanner(msg, type) {
-                if (type !== 'error') return;
+        /* =========================================================
+           UNITY ERROR HANDLER
+           Shows fullscreen error if something crashes
+        */
+        function unityShowBanner(msg, type) {
+          if (type !== 'error') return;
 
-                /* Prevent duplicate overlays */
-                if (!document.getElementById('unity-crash-overlay')) {
+          /* Prevent duplicate overlays */
+          if (!document.getElementById('unity-crash-overlay')) {
 
-                    var overlay = document.createElement('div');
-                    overlay.id = 'unity-crash-overlay';
+            var overlay = document.createElement('div');
+            overlay.id = 'unity-crash-overlay';
 
-                    /* Styling */
-                    Object.assign(overlay.style, {
-                        position: 'fixed',
-                        top: '0',
-                        left: '0',
-                        width: '100%',
-                        height: '100%',
+            /* Styling */
+            Object.assign(overlay.style, {
+              position: 'fixed',
+              top: '0',
+              left: '0',
+              width: '100%',
+              height: '100%',
 
-                        backgroundColor: 'rgba(0,0,0,0.95)',
+              backgroundColor: 'rgba(0,0,0,0.95)',
 
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
 
-                        zIndex: '9999',
+              zIndex: '9999',
 
-                        color: 'white',
-                        fontFamily: 'sans-serif',
-                        textAlign: 'center',
-                        padding: '20px'
-                    });
+              color: 'white',
+              fontFamily: 'sans-serif',
+              textAlign: 'center',
+              padding: '20px'
+            });
 
-                    /* Content */
-                    overlay.innerHTML = `
-                              <div>
-                                <h2 style="color:#ff4444">Error</h2>
-                                <p>${msg}</p>
-                                <button onclick="location.reload()">REFRESH</button>
-                              </div>
-                            `;
+            /* Content */
+            overlay.innerHTML = `
+              <div>
+                <h2 style="color:#ff4444">Error</h2>
+                <p>${msg}</p>
+                <button onclick="location.reload()">REFRESH</button>
+              </div>
+            `;
 
-                    document.body.appendChild(overlay);
-                }
-            }
+            document.body.appendChild(overlay);
+          }
+        }
             /* Check fullscreen state */
             function isFullscreenNow() {
                 return document.fullscreenElement ||
@@ -350,10 +350,10 @@
                     document.msFullscreenElement;
             }
 
-            /* =========================================================
-               RESIZE / FIT SCREEN HANDLER
-               Keeps Unity container aligned with actual viewport
-            */
+        /* =========================================================
+           RESIZE / FIT SCREEN HANDLER
+           Keeps Unity container aligned with actual viewport
+        */
             /* Resize handler */
             function fillScreen() {
                 if (isFullscreenNow()) {
@@ -382,144 +382,169 @@
                 }
             }
 
-            let started = false;
+        let started = false;
 
-            /* =========================================================
-               START BUTTON HANDLER
-               ========================================================= */
-            playButton.onclick = async () => {
-                if (started) return;
+        /* =========================================================
+           START BUTTON HANDLER
+           ========================================================= */
+        playButton.onclick = async () => {
+          if (started) return;
 
-                /* Prevent starting in portrait mode when pressing the button (mobile)*/
-                if (window.matchMedia("(orientation: portrait)").matches &&
-                    window.matchMedia("(pointer: coarse)").matches) { /*finger (low precision)*/
-                    alert("Please rotate to Landscape view!");
-                    return;
+          /* Prevent starting in portrait mode when pressing the button (mobile)*/
+            if (window.matchMedia("(orientation: portrait)").matches &&
+                window.matchMedia("(pointer: coarse)").matches) { /*finger (low precision)*/
+                alert("Please rotate to Landscape view!");
+                return;
+            }
+
+          started = true;
+
+          /* Hide start UI, show loading */
+          startOverlay.style.display = "none";
+          loadingBar.style.display = "block";
+
+          /* Try to enter fullscreen (user gesture required - using the play button click )  */
+            try {
+                if (container.requestFullscreen) {
+                    await container.requestFullscreen({ navigationUI: "hide" });
+                } else if (container.webkitRequestFullscreen) {
+                    container.webkitRequestFullscreen();
+                } else if (container.msRequestFullscreen) {
+                    container.msRequestFullscreen();
                 }
+            } catch (e) {
+                console.warn("Initial fullscreen request failed:", e);
+            }
 
-                started = true;
+          /* Try to lock orientation */
+          try {
+            if (screen.orientation?.lock) {
+              await screen.orientation.lock("landscape");
+            }
+          } catch (e) { console.warn("Orientation lock failed:", e); }
 
-                /* Hide start UI, show loading */
-                startOverlay.style.display = "none";
-                loadingBar.style.display = "block";
+          fillScreen();
 
-                /* Try to enter fullscreen (user gesture required - using the play button click )  */
-                try {
-                    if (container.requestFullscreen) {
-                        await container.requestFullscreen({ navigationUI: "hide" });
-                    } else if (container.webkitRequestFullscreen) {
-                        container.webkitRequestFullscreen();
-                    } else if (container.msRequestFullscreen) {
-                        container.msRequestFullscreen();
+          /* =========================================================
+             UNITY BUILD CONFIG (AUTO-GENERATED PLACEHOLDERS)
+             =========================================================
+             Unity replaces these values during build
+          */
+          var buildUrl = "Build";
+
+          var loaderUrl = buildUrl + "/{{{ LOADER_FILENAME }}}";
+
+          var config = {
+            dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+            frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+            codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+
+            streamingAssetsUrl: "StreamingAssets",
+
+            companyName: "{{{ COMPANY_NAME }}}",
+            productName: "{{{ PRODUCT_NAME }}}",
+            productVersion: "{{{ PRODUCT_VERSION }}}",
+
+            showBanner: unityShowBanner,
+
+            /* Limit resolution for performance */
+            devicePixelRatio: Math.min(window.devicePixelRatio, 2),
+          };
+
+            /* Dynamically load Unity WebGL loader */
+            const script = document.createElement("script");
+            script.src = loaderUrl;
+
+            script.onload = () => {
+
+                let targetPercent = 0;
+                let displayedPercent = 0;
+
+                /* Smooth animation loop */
+
+                const progressLoop = setInterval(() => {
+
+                    // Move quickly toward real progress
+                    if (displayedPercent < targetPercent) {
+                        displayedPercent += 0.8;
                     }
-                } catch (e) {
-                    console.warn("Initial fullscreen request failed:", e);
-                }
 
-                /* Try to lock orientation */
-                try {
-                    if (screen.orientation?.lock) {
-                        await screen.orientation.lock("landscape");
+                    // If real progress stalls, keep creeping slowly
+                    else if (displayedPercent < 95) {
+                        displayedPercent += 0.15;
                     }
-                } catch (e) { console.warn("Orientation lock failed:", e); }
 
-                fillScreen();
+                    progressText.textContent = Math.floor(displayedPercent) + "%";
+                    progressBarFull.style.width = displayedPercent + "%";
 
-                /* =========================================================
-                   UNITY BUILD CONFIG (AUTO-GENERATED PLACEHOLDERS)
-                   =========================================================
-                   Unity replaces these values during build
-                */
-                var buildUrl = "Build";
+                }, 15);
 
-                var loaderUrl = buildUrl + "/b23dd96997961653e2825455633aac82.loader.js";
+                createUnityInstance(canvas, config, (progress) => {
+                    /* Cap at 80%, jump to 100 when download is done*/
+                    targetPercent = Math.min(Math.round(progress * 100), 80);
 
-                var config = {
-                    dataUrl: buildUrl + "/ed1996368bae436315922cba6c3cceaf.data.unityweb",
-                    frameworkUrl: buildUrl + "/538409f0878278bc88c76a7d039b030e.framework.js.unityweb",
-                    codeUrl: buildUrl + "/ae44838e65af4a07539f825f152ce2d4.wasm.unityweb",
+                }).then((unityInstance) => {
+                     /* Smooth finish 90 → 100 */
+                    const finishInterval = setInterval(() => {
 
-                    streamingAssetsUrl: "StreamingAssets",
-
-                    companyName: "via",
-                    productName: "KuumAR",
-                    productVersion: "0.1",
-
-                    showBanner: unityShowBanner,
-
-                    /* Limit resolution for performance */
-                    devicePixelRatio: Math.min(window.devicePixelRatio, 2),
-                };
-
-                /* Dynamically load Unity WebGL loader */
-                const script = document.createElement("script");
-                script.src = loaderUrl;
-
-                script.onload = () => {
-
-                    createUnityInstance(canvas, config, (progress) => {
-
-                        // Real progress only (0 → 100)
-                        const percent = Math.round(progress * 100);
-
-                        progressBarFull.style.width = percent + "%";
-                        progressText.textContent = percent + "%";
-
-                    })
-                        .then((unityInstance) => {
-
-                            // Finish instantly (or you could animate if you want)
+                        if (displayedPercent < 100) {
+                            displayedPercent++;
+                            progressBarFull.style.width = displayedPercent + "%";
+                            progressText.textContent = displayedPercent + "%";
+                        } else {
+                            clearInterval(finishInterval);
+                            clearInterval(progressLoop);
                             loadingBar.style.display = "none";
+                        }
+                    }, 10);
 
-                            // ✅ SHOW Unity now
-                            canvas.style.opacity = "1";
+                    window.unityInstance = unityInstance;
 
-                            window.unityInstance = unityInstance;
+                    setTimeout(fillScreen, 500);
 
-                            setTimeout(fillScreen, 500);
-                    }).catch ((err) => {
-                        unityShowBanner(err, 'error');
-                    });
-
+                }).catch((err) => {
+                    clearInterval(progressLoop);
+                    unityShowBanner(err, 'error');
+                });
             };
 
             document.body.appendChild(script);
-                    };
+        };
 
-            /* Handle fullscreen changes */
-            document.addEventListener("fullscreenchange", () => {
-                focusCanvas();
-                setTimeout(fillScreen, 100);
-                setTimeout(fillScreen, 500);
-            });
+        /* Handle fullscreen changes */
+        document.addEventListener("fullscreenchange", () => {
+          focusCanvas();
+          setTimeout(fillScreen, 100);
+          setTimeout(fillScreen, 500);
+        });
 
-            document.addEventListener("webkitfullscreenchange", () => {
-                focusCanvas();
-                setTimeout(fillScreen, 100);
-                setTimeout(fillScreen, 500);
-            });
+        document.addEventListener("webkitfullscreenchange", () => {
+          focusCanvas();
+          setTimeout(fillScreen, 100);
+          setTimeout(fillScreen, 500);
+        });
 
-            /* Refocus when tab/app returns */
-            window.addEventListener("focus", () => {
-                focusCanvas();
-                setTimeout(fillScreen, 100);
-                setTimeout(fillScreen, 500);
-            });
+        /* Refocus when tab/app returns */
+        window.addEventListener("focus", () => {
+          focusCanvas();
+          setTimeout(fillScreen, 100);
+          setTimeout(fillScreen, 500);
+        });
 
-            /* Handle tab visibility changes */
-            document.addEventListener("visibilitychange", () => {
-                if (!document.hidden) {
-                    focusCanvas();
-                    setTimeout(fillScreen, 100);
-                    setTimeout(fillScreen, 500);
-                }
-            });
+        /* Handle tab visibility changes */
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden) {
+            focusCanvas();
+            setTimeout(fillScreen, 100);
+            setTimeout(fillScreen, 500);
+          }
+        });
 
-            /* Update layout when screen resizes */
-            window.addEventListener("resize", fillScreen);
+        /* Update layout when screen resizes */
+        window.addEventListener("resize", fillScreen);
 
-            /* Initial layout fix */
-            fillScreen();
+        /* Initial layout fix */
+        fillScreen();
 
         </script>
 </body>
