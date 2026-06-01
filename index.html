@@ -333,12 +333,12 @@
 
                     /* Content */
                     overlay.innerHTML = `
-                      <div>
-                        <h2 style="color:#ff4444">Error</h2>
-                        <p>${msg}</p>
-                        <button onclick="location.reload()">REFRESH</button>
-                      </div>
-                    `;
+                              <div>
+                                <h2 style="color:#ff4444">Error</h2>
+                                <p>${msg}</p>
+                                <button onclick="location.reload()">REFRESH</button>
+                              </div>
+                            `;
 
                     document.body.appendChild(overlay);
                 }
@@ -465,23 +465,26 @@
                         progressBarFull.style.width = percent + "%";
                         progressText.textContent = percent + "%";
 
-                    }).then((unityInstance) => {
+                    })
+                        .then((unityInstance) => {
 
-                        // Unity is fully ready → hide loader immediately
-                        loadingBar.style.display = "none";
+                            // Finish instantly (or you could animate if you want)
+                            loadingBar.style.display = "none";
 
-                        window.unityInstance = unityInstance;
+                            // ✅ SHOW Unity now
+                            canvas.style.opacity = "1";
 
-                        setTimeout(fillScreen, 500);
+                            window.unityInstance = unityInstance;
 
-                    }).catch((err) => {
+                            setTimeout(fillScreen, 500);
+                    }).catch ((err) => {
                         unityShowBanner(err, 'error');
                     });
 
-                };
-
-                document.body.appendChild(script);
             };
+
+            document.body.appendChild(script);
+                    };
 
             /* Handle fullscreen changes */
             document.addEventListener("fullscreenchange", () => {
