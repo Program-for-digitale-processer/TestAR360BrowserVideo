@@ -481,28 +481,39 @@
 
                     createUnityInstance(canvas, config, (progress) => {
                         /* Cap at 80%, jump to 100 when download is done*/
-                        targetPercent = Math.min(Math.round(progress * 100), 80);
+                        const percent = Math.min(100, Math.max(0, Math.floor(progress * 100)));
 
-                    }).then((unityInstance) => {
-                        /* Smooth finish 90 → 100 */
-                        const finishInterval = setInterval(() => {
+                    })
+                        .then((unityInstance) => {
 
-                            if (displayedPercent < 100) {
-                                displayedPercent++;
-                                progressBarFull.style.width = displayedPercent + "%";
-                                progressText.textContent = displayedPercent + "%";
-                            } else {
-                                clearInterval(finishInterval);
-                                clearInterval(progressLoop);
-                                loadingBar.style.display = "none";
-                            }
-                        }, 10);
+                            let finish = Math.floor(
+                                parseFloat(progressText.textContent) || 0
+                            );
 
-                        window.unityInstance = unityInstance;
+                            const finishInterval = setInterval(() => {
 
-                        setTimeout(fillScreen, 500);
+                                finish++;
 
-                    }).catch((err) => {
+                                progressBarFull.style.width = finish + "%";
+                                progressText.textContent = finish + "%";
+
+                                if (finish >= 100) {
+                                    clearInterval(finishInterval);
+
+                                    // Hide loader
+                                    loadingBar.style.display = "none";
+
+                                    // Show Unity
+                                    canvas.style.opacity = "1";
+                                }
+
+                            }, 10);
+
+                            window.unityInstance = unityInstance;
+
+                            setTimeout(fillScreen, 500);
+                        })
+.catch((err) => {
                         clearInterval(progressLoop);
                         unityShowBanner(err, 'error');
                     });
