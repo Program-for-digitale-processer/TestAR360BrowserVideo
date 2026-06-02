@@ -27,30 +27,22 @@
         html, body {
             margin: 0;
             padding: 0;
-            background-color: #000000 !important;/* Force full screen size */
+            background-color: #000000;
             width: 100%;
             height: 100%;
-            height: 100dvh; /* dynamic viewport height (better on mobile) */
-            /* Disable scrolling and page movement */
             overflow: hidden;
             position: fixed;
             left: 0;
             top: 0;
-            /* Disable touch gestures like scroll/pinch */
-            touch-action: none;
-            /* Prevent “rubber band” scrolling (iOS bounce) */
-            overscroll-behavior: none;
+            touch-action: none; /* Disable touch gestures like scroll/pinch */
+            overscroll-behavior: none; /* Prevent “rubber band” scrolling (iOS bounce) */
         }
 
         /* Fluid layout sizing net - relies on JS window orchestration */
         /* Fluid layout sizing net - STRICT GLOBAL RULE */
         #unity-container, #unity-canvas {
-            width: 100% !important;
-            height: 100% !important;
-            /* Safety net fallbacks for system popup interrupts */
-            min-width: 100vw !important;
-            min-height: 100vh !important;
-            min-height: 100dvh !important;
+            width: 100%; 
+            height: 100%;
         }
 
         /* Main Unity container wrapper */
@@ -208,15 +200,15 @@
      the Fullscreen button (desktop + mobile browsers) */
         #unity-container:fullscreen,
         #unity-container:-webkit-full-screen {
-            width: 100vw;
-            height: 100dvh;
+            width: 100%;
+            height: 100%;
             background: black;
         }
 
         #unity-container:fullscreen #unity-canvas,
         #unity-container:-webkit-full-screen #unity-canvas {
-            width: 100vw;
-            height: 100dvh;
+            width: 100%;
+            height: 100%;
         }
     </style>
 </head>
@@ -338,17 +330,19 @@
    RESIZE / FIT SCREEN HANDLER
    ========================================================= */
         function fillScreen() {
-        // Because we implemented the strict global CSS rule (!important),
-        // we no longer need to calculate precise pixels. We simply ensure
-        // the inline styles match our percentage-based architecture.
-            container.style.width = "100%";
-            container.style.height = "100%";
-    
+            const vv = window.visualViewport;
+
+            const width = vv ? vv.width : window.innerWidth;
+            const height = vv ? vv.height : window.innerHeight;
+
+            container.style.width = width + "px";
+            container.style.height = height + "px";
+
             if (canvas) {
-                canvas.style.width = "100%";
-                canvas.style.height = "100%";
+                canvas.style.width = width + "px";
+                canvas.style.height = height + "px";
             }
-    
+
             window.scrollTo(0, 0);
         }
 
@@ -394,9 +388,9 @@
           var buildUrl = "Build";
           var loaderUrl = buildUrl + "/b23dd96997961653e2825455633aac82.loader.js";
           var config = {
-            dataUrl: buildUrl + "/de32b3ed20950fed9296c0f5bb21900b.data.unityweb",
+            dataUrl: buildUrl + "/665c3216ee844ad1bfd5e33349dba0b3.data.unityweb",
             frameworkUrl: buildUrl + "/210cdafbec4ad8b27bdf836a63d61af5.framework.js.unityweb",
-            codeUrl: buildUrl + "/4c1a2af1cd7e9bc86af387696526d745.wasm.unityweb",
+            codeUrl: buildUrl + "/e82a35832524628f3513845b6a489678.wasm.unityweb",
             streamingAssetsUrl: "StreamingAssets",
             companyName: "via",
             productName: "KuumAR",
@@ -425,24 +419,27 @@
           document.body.appendChild(script);
         };
 
-        /* Listeners for Fullscreen Changes (Includes Native Escape key checking) */
+        /* Listeners for Fullscreen Changes */
+        // Listens for standard fullscreen enter/exit changes, such as entering fullscreen, leaving fullscreen, or pressing Escape.
         document.addEventListener("fullscreenchange", () => {
           focusCanvas();
           notifyUnityFullscreenState();
           setTimeout(fillScreen, 100);
         });
 
+        // Listens for older WebKit fullscreen enter/exit changes, mainly for Safari and some mobile browser compatibility.
         document.addEventListener("webkitfullscreenchange", () => {
           focusCanvas();
           notifyUnityFullscreenState();
           setTimeout(fillScreen, 100);
         });
-
+        // Listens for the page gaining focus again, such as after a permission popup closes or the user returns to the tab.
         window.addEventListener("focus", () => {
           focusCanvas();
           setTimeout(fillScreen, 100);
         });
 
+       //Listens for the page becoming visible again after being hidden, such as after tab switching or app backgrounding.
         document.addEventListener("visibilitychange", () => {
           if (!document.hidden) {
             focusCanvas();
@@ -450,7 +447,17 @@
           }
         });
 
-        window.addEventListener("resize", fillScreen);
+        // Listens for normal browser window size changes, such as desktop resizing, device rotation, or fullscreen layout changes.
+       window.addEventListener("resize", fillScreen);
+
+       // Checks if the browser supports the Visual Viewport API, which represents the actually visible part of the page on mobile.
+        if (window.visualViewport) {
+            // Listens for visible viewport size changes, such as browser UI, keyboard, or permission popup changes on mobile.
+            window.visualViewport.addEventListener("resize", fillScreen);
+            // Listens for visible viewport position shifts, such as mobile browser UI or permission popups moving the viewport.
+            window.visualViewport.addEventListener("scroll", fillScreen);
+        }
+
         fillScreen();
 
         // Location Workflow: Detects the restorative tap after permissions are settled
