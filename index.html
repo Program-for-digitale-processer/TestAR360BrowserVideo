@@ -332,8 +332,14 @@
         function fillScreen() {
             const vv = window.visualViewport;
 
-            const width = vv ? vv.width : window.innerWidth;
-            const height = vv ? vv.height : window.innerHeight;
+            //  Check if the browser is actively rendering in element-fullscreen mode
+            const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+
+            //    If fullscreen, use the visual viewport (snaps to screen, handles notches perfectly).
+            //    If NOT fullscreen (like during the location prompt), use window.innerWidth/Height.
+            //    This keeps the canvas full-size under the popup instead of shrinking it.
+            const width = (isFullscreen && vv) ? vv.width : window.innerWidth;
+            const height = (isFullscreen && vv) ? vv.height : window.innerHeight;
 
             container.style.width = width + "px";
             container.style.height = height + "px";
@@ -388,7 +394,7 @@
           var buildUrl = "Build";
           var loaderUrl = buildUrl + "/b23dd96997961653e2825455633aac82.loader.js";
           var config = {
-            dataUrl: buildUrl + "/3cecf89869036c6430bfaec0686c560e.data.unityweb",
+            dataUrl: buildUrl + "/ee22f4056196fbc1c65864f871da6a26.data.unityweb",
             frameworkUrl: buildUrl + "/2c019308fb55febcc5befdf5c6cd2aa4.framework.js.unityweb",
             codeUrl: buildUrl + "/e3bdcd72ce2e43cb6a4a379d617057f6.wasm.unityweb",
             streamingAssetsUrl: "StreamingAssets",
