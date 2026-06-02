@@ -27,8 +27,7 @@
         html, body {
             margin: 0;
             padding: 0;
-            background: black;
-            /* Force full screen size */
+            background-color: #000000 !important;/* Force full screen size */
             width: 100%;
             height: 100%;
             height: 100dvh; /* dynamic viewport height (better on mobile) */
@@ -43,24 +42,29 @@
             overscroll-behavior: none;
         }
 
-        /* Main Unity container */
+        /* Fluid layout sizing net - relies on JS window orchestration */
+        /* Fluid layout sizing net - STRICT GLOBAL RULE */
+        #unity-container, #unity-canvas {
+            width: 100% !important;
+            height: 100% !important;
+            /* Safety net fallbacks for system popup interrupts */
+            min-width: 100vw !important;
+            min-height: 100vh !important;
+            min-height: 100dvh !important;
+        }
+
+        /* Main Unity container wrapper */
         #unity-container {
-            width: 100%;
-            height: 100%;
             position: relative;
-            /* Background behind WebGL canvas */
             background: #000;
             overflow: hidden;
         }
 
-        /* WebGL canvas where Unity renders */
+        /* WebGL canvas element */
         #unity-canvas {
             background: black;
-            /* Removes inline gaps below canvas */
             display: block;
-            /* Fill container */
-            width: 100%;
-            height: 100%;
+            touch-action: none; /* Secondary safety net for Safari zoom loops */
         }
 
         /* =========================================================
@@ -196,25 +200,23 @@
                     transform: rotate(0deg);
                 }
             }
+        }
             /* =========================================================
-           Ensure FULLSCREEN
-           =========================================================
-           Ensures container + canvas fill entire screen when using
-           the Fullscreen button (desktop + mobile browsers) */
-            #unity-container:fullscreen,
-            #unity-container:-webkit-full-screen {
-                width: 100vw;
-                height: 100vh;
-                height: 100dvh;
-                background: black;
-            }
+     Ensure FULLSCREEN
+     =========================================================
+     Ensures container + canvas fill entire screen when using
+     the Fullscreen button (desktop + mobile browsers) */
+        #unity-container:fullscreen,
+        #unity-container:-webkit-full-screen {
+            width: 100vw;
+            height: 100dvh;
+            background: black;
+        }
 
-                #unity-container:fullscreen #unity-canvas,
-                #unity-container:-webkit-full-screen #unity-canvas {
-                    width: 100vw;
-                    height: 100vh;
-                    height: 100dvh;
-                }
+        #unity-container:fullscreen #unity-canvas,
+        #unity-container:-webkit-full-screen #unity-canvas {
+            width: 100vw;
+            height: 100dvh;
         }
     </style>
 </head>
@@ -280,8 +282,9 @@
                 <div id="unity-progress-text">0%</div>
             </div>
         </div>
+    </div>
 
-        <script>
+    <script>
         /* =========================================================
            CACHE IMPORTANT ELEMENTS
            ========================================================= */
@@ -332,21 +335,20 @@
         }
 
         /* =========================================================
-           RESIZE / FIT SCREEN HANDLER
-           ========================================================= */
+   RESIZE / FIT SCREEN HANDLER
+   ========================================================= */
         function fillScreen() {
-            if (isFullscreenNow()) {
-                container.style.width = "100vw";
-                container.style.height = "100dvh";
-                canvas.style.width = "100vw";
-                canvas.style.height = "100dvh";
-            } else {
-                const vv = window.visualViewport;
-                container.style.height = (vv ? vv.height : window.innerHeight) + "px";
-                container.style.width = (vv ? vv.width : window.innerWidth) + "px";
+        // Because we implemented the strict global CSS rule (!important),
+        // we no longer need to calculate precise pixels. We simply ensure
+        // the inline styles match our percentage-based architecture.
+            container.style.width = "100%";
+            container.style.height = "100%";
+    
+            if (canvas) {
                 canvas.style.width = "100%";
                 canvas.style.height = "100%";
             }
+    
             window.scrollTo(0, 0);
         }
 
@@ -392,7 +394,7 @@
           var buildUrl = "Build";
           var loaderUrl = buildUrl + "/b23dd96997961653e2825455633aac82.loader.js";
           var config = {
-            dataUrl: buildUrl + "/6263ff48fab3849bbbae78020d85bf3e.data.unityweb",
+            dataUrl: buildUrl + "/de32b3ed20950fed9296c0f5bb21900b.data.unityweb",
             frameworkUrl: buildUrl + "/210cdafbec4ad8b27bdf836a63d61af5.framework.js.unityweb",
             codeUrl: buildUrl + "/4c1a2af1cd7e9bc86af387696526d745.wasm.unityweb",
             streamingAssetsUrl: "StreamingAssets",
