@@ -209,12 +209,12 @@
                 background: black;
             }
 
-            #unity-container:fullscreen #unity-canvas,
-            #unity-container:-webkit-full-screen #unity-canvas {
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
-            }
+                #unity-container:fullscreen #unity-canvas,
+                #unity-container:-webkit-full-screen #unity-canvas {
+                    width: 100vw;
+                    height: 100vh;
+                    height: 100dvh;
+                }
         }
     </style>
 </head>
@@ -327,7 +327,7 @@
         /* Helper to notify Unity when fullscreen changes or drops natively */
         function notifyUnityFullscreenState() {
             if (!isFullscreenNow() && window.unityInstance) {
-                window.unityInstance.SendMessage("GetCityForTemp", "OnFullscreenExited", "");
+                window.unityInstance.SendMessage("Fullscreen_container", "OnFullscreenExited", "Not in fullscreen anymore");
             }
         }
 
@@ -392,9 +392,9 @@
           var buildUrl = "Build";
           var loaderUrl = buildUrl + "/b23dd96997961653e2825455633aac82.loader.js";
           var config = {
-            dataUrl: buildUrl + "/d8046bfd546b75daf83dbb92d25efbef.data.unityweb",
-            frameworkUrl: buildUrl + "/149ff12955a8d68ab02cafc190d6a2d7.framework.js.unityweb",
-            codeUrl: buildUrl + "/7b454715859fabaabb40bfec49c90ad2.wasm.unityweb",
+            dataUrl: buildUrl + "/6263ff48fab3849bbbae78020d85bf3e.data.unityweb",
+            frameworkUrl: buildUrl + "/210cdafbec4ad8b27bdf836a63d61af5.framework.js.unityweb",
+            codeUrl: buildUrl + "/4c1a2af1cd7e9bc86af387696526d745.wasm.unityweb",
             streamingAssetsUrl: "StreamingAssets",
             companyName: "via",
             productName: "KuumAR",
@@ -451,282 +451,35 @@
         window.addEventListener("resize", fillScreen);
         fillScreen();
 
+        // Location Workflow: Detects the restorative tap after permissions are settled
+        window.shouldRestoreFullscreenOnNextTap = false;
+
+        function attemptFullscreenRestore(event) {
+            if (!window.shouldRestoreFullscreenOnNextTap) return;
+
+            requestFullscreenForContainer();
+            window.shouldRestoreFullscreenOnNextTap = false;
+        }
+
         /* Safe container fallback with promise failure catching */
         function requestFullscreenForContainer() {
             if (!container) return;
             let request = container.requestFullscreen || container.webkitRequestFullscreen || container.msRequestFullscreen;
             if (request) {
-                // Safe evaluation via promise catching to avoid crashes on mobile browsers
-                Promise.resolve(request.call(container)).catch(function(err) {
-                    console.warn("Fullscreen restoration failed on tap/click gesture: ", err);
+            // Safe evaluation via promise catching to avoid crashes on mobile browsers
+                Promise.resolve(request.call(container)).catch(function (err) {
+                console.warn("Fullscreen restoration failed on tap/click gesture: ", err);
                 });
             }
         }
 
-        // Location Workflow: Detects the restorative tap after permissions are settled
-        window.shouldRestoreFullscreenOnNextTap = false;
-        document.addEventListener("click", function () {
-            if (!window.shouldRestoreFullscreenOnNextTap) return;
+        // 1. Use pointerup/touchend to bypass Unity's blocked 'click' events.
+        // 2. Pass 'true' to use the Capture Phase, catching the event BEFORE Unity swallows it.
+        document.addEventListener("pointerup", attemptFullscreenRestore, true);
+        document.addEventListener("touchend", attemptFullscreenRestore, true);
+        document.addEventListener("click", attemptFullscreenRestore, true);
 
-            requestFullscreenForContainer();
-            window.shouldRestoreFullscreenOnNextTap = false;
-        });
         </script>
-        <!--<script>
-        /* =========================================================
-           CACHE IMPORTANT ELEMENTS
-           Cache DOM elements for performance
-           =========================================================
-              */
-        const container = document.querySelector("#unity-container");
-        const canvas = document.querySelector("#unity-canvas");
-        const loadingBar = document.querySelector("#unity-loading-bar");
-        const progressBarFull = document.querySelector("#unity-progress-bar-full");
-        const progressText = document.querySelector("#unity-progress-text");
-        const startOverlay = document.querySelector("#custom-start-overlay");
-        const playButton = document.querySelector("#btn-play");
-
-
-
-        /* =========================================================
-           UNITY ERROR HANDLER
-           Shows fullscreen error if something crashes
-        */
-        function unityShowBanner(msg, type) {
-          if (type !== 'error') return;
-
-          /* Prevent duplicate overlays */
-          if (!document.getElementById('unity-crash-overlay')) {
-
-            var overlay = document.createElement('div');
-            overlay.id = 'unity-crash-overlay';
-
-            /* Styling */
-            Object.assign(overlay.style, {
-              position: 'fixed',
-              top: '0',
-              left: '0',
-              width: '100%',
-              height: '100%',
-
-              backgroundColor: 'rgba(0,0,0,0.95)',
-
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-
-              zIndex: '9999',
-
-              color: 'white',
-              fontFamily: 'sans-serif',
-              textAlign: 'center',
-              padding: '20px'
-            });
-
-            /* Content */
-            overlay.innerHTML = `
-              <div>
-                <h2 style="color:#ff4444">Error</h2>
-                <p>${msg}</p>
-                <button onclick="location.reload()">REFRESH</button>
-              </div>
-            `;
-
-            document.body.appendChild(overlay);
-          }
-        }
-            /* Check fullscreen state */
-            function isFullscreenNow() {
-                return document.fullscreenElement ||
-                    document.webkitFullscreenElement ||
-                    document.msFullscreenElement;
-            }
-
-        /* =========================================================
-           RESIZE / FIT SCREEN HANDLER
-           Keeps Unity container aligned with actual viewport
-        */
-            /* Resize handler */
-            function fillScreen() {
-                if (isFullscreenNow()) {
-                    container.style.width = "100vw";
-                    container.style.height = "100dvh";
-                    canvas.style.width = "100vw";
-                    canvas.style.height = "100dvh";
-                } else {
-                    const vv = window.visualViewport;
-
-                    container.style.height = (vv ? vv.height : window.innerHeight) + "px";
-                    container.style.width = (vv ? vv.width : window.innerWidth) + "px";
-
-                    canvas.style.width = "100%";
-                    canvas.style.height = "100%";
-                }
-
-                /* Prevent scroll offset */
-                window.scrollTo(0, 0);
-            }
-
-            /* Return focus back to canvas after going into fullscreen */
-            function focusCanvas() {
-                if (canvas) {
-                    canvas.focus();
-                }
-            }
-
-        let started = false;
-
-        /* =========================================================
-           START BUTTON HANDLER
-           ========================================================= */
-        playButton.onclick = async () => {
-          if (started) return;
-
-          /* Prevent starting in portrait mode when pressing the button (mobile)*/
-            if (window.matchMedia("(orientation: portrait)").matches &&
-                window.matchMedia("(pointer: coarse)").matches) { /*finger (low precision)*/
-                alert("Please rotate to Landscape view!");
-                return;
-            }
-
-          started = true;
-
-          /* Hide start UI, show loading */
-          startOverlay.style.display = "none";
-          loadingBar.style.display = "block";
-
-          /* Try to enter fullscreen (user gesture required - using the play button click )  */
-            try {
-                if (container.requestFullscreen) {
-                    await container.requestFullscreen({ navigationUI: "hide" });
-                } else if (container.webkitRequestFullscreen) {
-                    container.webkitRequestFullscreen();
-                } else if (container.msRequestFullscreen) {
-                    container.msRequestFullscreen();
-                }
-            } catch (e) {
-                console.warn("Initial fullscreen request failed:", e);
-            }
-
-          /* Try to lock orientation */
-          try {
-            if (screen.orientation?.lock) {
-              await screen.orientation.lock("landscape");
-            }
-          } catch (e) { console.warn("Orientation lock failed:", e); }
-
-          fillScreen();
-
-          /* =========================================================
-             UNITY BUILD CONFIG (AUTO-GENERATED PLACEHOLDERS)
-             =========================================================
-             Unity replaces these values during build
-          */
-          var buildUrl = "Build";
-
-          var loaderUrl = buildUrl + "/b23dd96997961653e2825455633aac82.loader.js";
-
-          var config = {
-            dataUrl: buildUrl + "/d8046bfd546b75daf83dbb92d25efbef.data.unityweb",
-            frameworkUrl: buildUrl + "/149ff12955a8d68ab02cafc190d6a2d7.framework.js.unityweb",
-            codeUrl: buildUrl + "/7b454715859fabaabb40bfec49c90ad2.wasm.unityweb",
-
-            streamingAssetsUrl: "StreamingAssets",
-
-            companyName: "via",
-            productName: "KuumAR",
-            productVersion: "0.1",
-
-            showBanner: unityShowBanner,
-
-            /* Limit resolution for performance */
-            devicePixelRatio: Math.min(window.devicePixelRatio, 2),
-          };
-
-            /* Dynamically load Unity WebGL loader */
-            const script = document.createElement("script");
-            script.src = loaderUrl;
-
-            script.onload = () =>{
-                createUnityInstance(canvas, config, (progress) =>
-                {
-                    // Show loading progress
-                    const percent = Math.min(100, Math.floor(progress * 100));
-                    progressBarFull.style.width = percent + "%";
-                    progressText.textContent = percent + "%";
-
-                })
-                .then((unityInstance) => {
-                    // Unity is fully ready now
-                    // Hide loader immediately
-                    loadingBar.style.display = "none";
-                    window.unityInstance = unityInstance;
-                    setTimeout(fillScreen, 500);
-                })
-                .catch((err) =>{
-                   unityShowBanner(err, 'error');
-                });
-            };
-            document.body.appendChild(script);
-        };
-
-        /* Handle fullscreen changes */
-        document.addEventListener("fullscreenchange", () => {
-          focusCanvas();
-          setTimeout(fillScreen, 100);
-          setTimeout(fillScreen, 500);
-        });
-
-        document.addEventListener("webkitfullscreenchange", () => {
-          focusCanvas();
-          setTimeout(fillScreen, 100);
-          setTimeout(fillScreen, 500);
-        });
-
-        /* Refocus when tab/app returns */
-        window.addEventListener("focus", () => {
-          focusCanvas();
-          setTimeout(fillScreen, 100);
-          setTimeout(fillScreen, 500);
-        });
-
-        /* Handle tab visibility changes */
-        document.addEventListener("visibilitychange", () => {
-          if (!document.hidden) {
-            focusCanvas();
-            setTimeout(fillScreen, 100);
-            setTimeout(fillScreen, 500);
-          }
-        });
-
-        /* Update layout when screen resizes */
-        window.addEventListener("resize", fillScreen);
-
-        /* Initial layout fix */
-        fillScreen();
-
-           /*function for requesting fullscreen*/
-    function requestFullscreenForContainer() {
-        let request =
-            container.requestFullscreen ||
-            container.webkitRequestFullscreen ||
-            container.msRequestFullscreen;
-
-        if (request) {
-            request.call(container);
-        }
-    }
-        // Used after the popup for location permission
-        window.shouldRestoreFullscreenOnNextTap = false;
-        document.addEventListener("click", function () {
-            if (!window.shouldRestoreFullscreenOnNextTap) return;
-
-            requestFullscreenForContainer();
-
-            window.shouldRestoreFullscreenOnNextTap = false;
-        });
-    </script>-->
 </body>
 </html>
 
