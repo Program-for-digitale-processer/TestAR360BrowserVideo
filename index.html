@@ -9,7 +9,7 @@
 
     <!-- Unity replaces this at build time -->
     <!-- Example: "KuumAR" -->
-    <title>KuumAR</title>
+    <title>Uusimaa_R4C_Prototype</title>
 
     <!-- Viewport setup:
          - disables zoom
@@ -322,7 +322,7 @@
         /* Helper to notify Unity when fullscreen changes or drops natively */
         function notifyUnityFullscreenState() {
             if (!isFullscreenNow() && window.unityInstance) {
-                window.unityInstance.SendMessage("Fullscreen_container", "OnFullscreenExited", "Not in fullscreen anymore");
+                window.unityInstance.SendMessage("FullscreenButton_container", "OnFullscreenExited", "Not in fullscreen anymore");
             }
         }
 
@@ -392,14 +392,14 @@
           fillScreen();
 
           var buildUrl = "Build";
-          var loaderUrl = buildUrl + "/b23dd96997961653e2825455633aac82.loader.js";
+          var loaderUrl = buildUrl + "/Uusimaa_FirstBuild.loader.js";
           var config = {
-            dataUrl: buildUrl + "/720bff736b2b3bac2ed57a268d8e35bf.data.unityweb",
-            frameworkUrl: buildUrl + "/953b7df443a7a2c755b372691ad61ab6.framework.js.unityweb",
-            codeUrl: buildUrl + "/4414213020caac593e80042ef2b739a8.wasm.unityweb",
+            dataUrl: buildUrl + "/Uusimaa_FirstBuild.data.unityweb",
+            frameworkUrl: buildUrl + "/Uusimaa_FirstBuild.framework.js.unityweb",
+            codeUrl: buildUrl + "/Uusimaa_FirstBuild.wasm.unityweb",
             streamingAssetsUrl: "StreamingAssets",
             companyName: "via",
-            productName: "KuumAR",
+            productName: "Uusimaa_R4C_Prototype",
             productVersion: "0.1",
             showBanner: unityShowBanner,
             devicePixelRatio: Math.min(window.devicePixelRatio, 2),
@@ -477,7 +477,7 @@
 
             if (window.unityInstance) {
 
-                window.unityInstance.SendMessage("Fullscreen_container", "OnFullscreenRestoredViaTouch", "Entered fullscreen by touching screen");
+                window.unityInstance.SendMessage("FullscreenButton_container", "OnFullscreenRestoredViaTouch", "Entered fullscreen by touching screen");
             }
         }
 
